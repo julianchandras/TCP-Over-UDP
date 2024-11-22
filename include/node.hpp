@@ -3,6 +3,9 @@
 
 #include "socket.hpp"
 
+class Server;
+class Client;
+
 /**
  * Abstract class.
  *
