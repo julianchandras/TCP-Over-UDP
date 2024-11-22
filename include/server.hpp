@@ -6,6 +6,8 @@
 class Server : public Node
 {
 public:
+    Server(string ip, int32_t port);
+
     void run();
     void handleMessage(void *buffer) override;
 };

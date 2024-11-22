@@ -46,6 +46,9 @@ private:
     TCPStatusEnum status;
 
 public:
+    TCPSocket(string ip, int32_t port);
+    TCPStatusEnum getStatus();
+
     void listen();
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);

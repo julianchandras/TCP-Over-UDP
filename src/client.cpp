@@ -1,11 +1,34 @@
-#include <iostream>
 #include "client.hpp"
+#include <iostream>
 
-Client::Client(string server_id, int server_port) {
-    this->server_id = server_id;
-    this->server_port = server_port;
-}
+Client::Client(string ip, int32_t port) : Node(ip, port) {}
 
 void Client::run() {
+    string serverHost;
+    int32_t serverPort;
+
+    cout << "[?] Input the server program's host: ";
+    cin >> serverHost;
+
+    cout << "[?] Input the server program's port: ";
+    cin >> serverPort;
+
+    this->serverIp = serverHost;
+    this->serverPort = serverPort;
+
+    // cout << "[+] Trying to contact the sender at " << this->serverIp << ":" << this->serverPort << endl;
+    // TODO: handshake
+
+    // UDP Trial
+    this->connection->listen();
     
+    char buffer[1024];
+    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
+    buffer[bytesRead] = '\0';
+
+    cout << "[+] Received from server: " << buffer << endl;
+}
+
+void Client::handleMessage(void *buffer) {
+
 }

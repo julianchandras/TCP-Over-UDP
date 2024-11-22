@@ -15,10 +15,13 @@ class Node
 {
 protected:
     TCPSocket *connection;
+    virtual void handleMessage(void *buffer) = 0;
 
 public:
-    void run();
-    virtual void handleMessage(void *buffer) = 0;
+    Node(string ip, int32_t port);
+    ~Node();
+
+    virtual void run() = 0;
 };
 
 #endif
