@@ -11,9 +11,6 @@ Segment initializeSegment()
     return seg;
 }
 
-/**
- * Generate Segment that contain SYN packet
- */
 Segment syn(uint32_t seqNum)
 {
     Segment synSeg = initializeSegment();
@@ -22,9 +19,6 @@ Segment syn(uint32_t seqNum)
     return synSeg;
 }
 
-/**
- * Generate Segment that contain ACK packet
- */
 Segment ack(uint32_t seqNum, uint32_t ackNum)
 {
     Segment ackSeg = initializeSegment();
@@ -34,9 +28,6 @@ Segment ack(uint32_t seqNum, uint32_t ackNum)
     return ackSeg;
 }
 
-/**
- * Generate Segment that contain SYN-ACK packet
- */
 Segment synAck(uint32_t seqNum)
 {
     Segment saSeg = initializeSegment();
@@ -46,9 +37,6 @@ Segment synAck(uint32_t seqNum)
     return saSeg;
 }
 
-/**
- * Generate Segment that contain FIN packet
- */
 Segment fin()
 {
     Segment finSeg = initializeSegment();
@@ -56,9 +44,6 @@ Segment fin()
     return finSeg;
 }
 
-/**
- * Generate Segment that contain FIN-ACK packet
- */
 Segment finAck()
 {
     Segment faSeg = initializeSegment();

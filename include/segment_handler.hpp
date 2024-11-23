@@ -1,6 +1,7 @@
 #ifndef segment_handler_h
 #define segment_handler_h
 
+#include <vector>
 #include "segment.hpp"
 
 class SegmentHandler
@@ -12,7 +13,7 @@ private:
     void *dataStream;
     uint32_t dataSize;
     uint32_t dataIndex;
-    Segment *segmentBuffer; // or use std vector if you like
+    std::vector<Segment> segmentBuffer;
 
     void generateSegments();
 

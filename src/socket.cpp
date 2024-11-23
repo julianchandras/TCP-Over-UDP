@@ -20,6 +20,12 @@ TCPSocket::TCPSocket(string ip, int32_t port) {
     address.sin_addr.s_addr = stoi(this->ip);
 
     bind(this->socket, (struct sockaddr*)&address, sizeof(address));
+
+    segmentHandler = new SegmentHandler();
+}
+
+TCPSocket::~TCPSocket() {
+    delete segmentHandler;
 }
 
 TCPStatusEnum TCPSocket::getStatus() {
@@ -36,7 +42,9 @@ void TCPSocket::listen() {
     cout << "[i] Listening to the broadcast port for clients." << endl;
 }
 
-void TCPSocket::connect(int32_t port) {}
+void TCPSocket::connect(string ip, int32_t port) {
+
+}
 
 void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize) {
     sockaddr_in clientAddress;
