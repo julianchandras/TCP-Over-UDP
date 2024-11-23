@@ -2,6 +2,7 @@
 #define segment_handler_h
 
 #include "segment.hpp"
+#include <vector>
 
 class SegmentHandler
 {
@@ -10,10 +11,9 @@ private:
     uint32_t currentSeqNum;
     uint32_t currentAckNum;
     void *dataStream;
+    vector<Segment> segmentBuffer;
     uint32_t dataSize;
     uint32_t dataIndex;
-    Segment *segmentBuffer; // or use std vector if you like
-
     void generateSegments();
 
 public:

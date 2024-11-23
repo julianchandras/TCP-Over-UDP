@@ -1,4 +1,4 @@
-#include "include/segment.hpp"
+#include "../include/segment.hpp"
 
 Segment initializeSegment()
 {
