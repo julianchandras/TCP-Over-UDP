@@ -6,9 +6,10 @@
 struct Segment
 {
     uint16_t sourcePort : 16;
-    uint16_t destPort;
+    uint16_t destPort : 16;
     // todo continue
-
+    uint32_t sequenceNumber : 32;
+    uint32_t acknowledgementNumber : 32;
     struct
     {
         unsigned int data_offset : 4;
@@ -19,10 +20,20 @@ struct Segment
     {
         unsigned int cwr : 1;
         // todo continue ...
+        unsigned int ece : 1;
+        unsigned int urg : 1;
+        unsigned int ack : 1;
+        unsigned int psh : 1;
+        unsigned int rst : 1;
+        unsigned int syn : 1;
+        unsigned int fin : 1;
     } flags;
 
     uint16_t window;
     // todo continue
+    uint16_t checkSum;
+    uint16_t urgentPointer;
+    uint32_t *options;
     uint8_t *payload;
 } __attribute__((packed));
 
