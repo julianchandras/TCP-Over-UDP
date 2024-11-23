@@ -15,7 +15,6 @@ class Node
 {
 protected:
     TCPSocket *connection;
-    virtual void handleMessage(void *buffer) = 0;
 
 public:
     Node(string ip, int32_t port);

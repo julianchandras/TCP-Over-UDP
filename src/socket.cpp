@@ -13,6 +13,13 @@ TCPSocket::TCPSocket(string ip, int32_t port) {
     if (this->socket == -1) {
         throw new runtime_error("Failed to create socket");
     }
+
+    sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_port = htons(this->port);
+    address.sin_addr.s_addr = stoi(this->ip);
+
+    bind(this->socket, (struct sockaddr*)&address, sizeof(address));
 }
 
 TCPStatusEnum TCPSocket::getStatus() {
@@ -22,29 +29,22 @@ TCPStatusEnum TCPSocket::getStatus() {
 void TCPSocket::listen() {
     this->status = TCPStatusEnum::LISTEN;
 
-    sockaddr_in clientAddress;
-    clientAddress.sin_family = AF_INET;
-    clientAddress.sin_port = htons(this->port);
-    clientAddress.sin_addr.s_addr = stoi(this->ip);
+    // this should be for the client (sending req to server), not listening server
+    // int broadcast_value = 1;
+    // setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
 
-    bind(this->socket, (struct sockaddr*)&clientAddress, sizeof(clientAddress));
-
-    // cout << "[i] Listening to the broadcast port for clients." << endl;
-    cout << "[i] Listening to the port for messages." << endl;
+    cout << "[i] Listening to the broadcast port for clients." << endl;
 }
 
-void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize) {
-    int32_t clientSocket = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (this->socket == -1) {
-        throw new runtime_error("Failed to create socket");
-    }
+void TCPSocket::connect(int32_t port) {}
 
+void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize) {
     sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_port = htons(port);
     clientAddress.sin_addr.s_addr = stoi(ip);
 
-    sendto(clientSocket, dataStream, dataSize, 0, (struct sockaddr*)&clientAddress, sizeof(clientAddress));
+    sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr*)&clientAddress, sizeof(clientAddress));
 }
 
 int32_t TCPSocket::recv(void *buffer, uint32_t length) {

@@ -12,11 +12,12 @@ private:
     string serverIp;
     int32_t serverPort;
 
+    void handleMessage(void *buffer);
+
 public:
     Client(string ip, int32_t port);
 
     void run();
-    void handleMessage(void *buffer) override;
 };
 
 #endif

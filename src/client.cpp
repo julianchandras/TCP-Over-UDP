@@ -9,6 +9,7 @@ void Client::run() {
 
     cout << "[?] Input the server program's host: ";
     cin >> serverHost;
+    // Probably the above code should not exist since the client look for server through broadcast
 
     cout << "[?] Input the server program's port: ";
     cin >> serverPort;
@@ -18,9 +19,9 @@ void Client::run() {
 
     // cout << "[+] Trying to contact the sender at " << this->serverIp << ":" << this->serverPort << endl;
     // TODO: handshake
+    // this->connection->connect(this->serverPort)
 
     // UDP Trial
-    this->connection->listen();
     
     char buffer[1024];
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
