@@ -1,8 +1,12 @@
 #include <iostream>
-#include "include/client.hpp"
-#include "include/server.hpp"
+#include "../include/client.hpp"
+#include "../include/server.hpp"
 
 using namespace std;
+
+Node::Node(string ip, int32_t port) {
+    this->connection = new TCPSocket(ip, port);
+}
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
@@ -25,10 +29,18 @@ int main(int argc, char* argv[]) {
     Node* node = nullptr;
 
     if (choice == 1) {
-        node = new Server();
+        node = new Server(host, port);
+        cout << "[+] Node is now a sender" << endl;
     } else if (choice == 2) {
         node = new Client(host, port);
+        cout << "[+] Node is now a receiver" << endl;
     }
 
+    node->run();
+
     return 0;
+}
+
+Node::~Node() {
+    delete connection;
 }

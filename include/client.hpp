@@ -9,13 +9,15 @@ using namespace std;
 class Client : public Node
 {
 private:
-    string server_id;
-    int server_port;
+    string serverIp;
+    int32_t serverPort;
+
+    void handleMessage(void *buffer);
 
 public:
-    Client(string server_id, int server_port);
+    Client(string ip, int32_t port);
+
     void run();
-    void handleMessage(void *buffer) override;
 };
 
 #endif

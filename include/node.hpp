@@ -17,8 +17,10 @@ protected:
     TCPSocket *connection;
 
 public:
-    void run();
-    virtual void handleMessage(void *buffer) = 0;
+    Node(string ip, int32_t port);
+    ~Node();
+
+    virtual void run() = 0;
 };
 
 #endif
