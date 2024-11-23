@@ -69,7 +69,7 @@ Segment finAck()
 
 uint16_t computeChecksum(const uint8_t *data, size_t length) {
     uint32_t sum = 0;
-
+    
     for (size_t i = 0; i < length; i += 2) {
         uint16_t word = (data[i] << 8) | (i + 1 < length ? data[i + 1] : 0);
         sum += word;
@@ -80,4 +80,42 @@ uint16_t computeChecksum(const uint8_t *data, size_t length) {
     }
 
     return static_cast<uint16_t>(~sum);
+}
+
+// Calculate checksum
+uint8_t *calculateChecksum(Segment segment) {
+    size_t segmentLength = sizeof(Segment);
+    uint8_t *buffer = new uint8_t[segmentLength];
+    memset(buffer, 0, segmentLength);
+
+    memcpy(buffer, &segment, sizeof(Segment));
+
+    uint16_t checksum = computeChecksum(buffer, segmentLength);
+    delete[] buffer;
+
+    uint8_t *result = new uint8_t[2];
+    result[0] = checksum >> 8;
+    result[1] = checksum & 0xFF;
+    return result;
+}
+
+Segment updateChecksum(Segment segment) {
+    uint8_t *checksumBytes = calculateChecksum(segment);
+    segment.checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    delete[] checksumBytes;
+    return segment;
+}
+
+bool isValidChecksum(Segment segment) {
+    uint16_t originalChecksum = segment.checkSum;
+
+    segment.checkSum = 0;
+
+    uint8_t *calculated = calculateChecksum(segment);
+    uint16_t recalculatedChecksum = (calculated[0] << 8) | calculated[1];
+    delete[] calculated;
+
+    segment.checkSum = originalChecksum;
+
+    return originalChecksum == recalculatedChecksum;
 }

@@ -72,6 +72,8 @@ Segment fin();
  */
 Segment finAck();
 
+uint16_t computeChecksum(const uint8_t *data, size_t length)
+
 // update return type as needed
 uint8_t *calculateChecksum(Segment segment);
 
