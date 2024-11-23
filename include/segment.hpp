@@ -2,13 +2,16 @@
 #define segment_h
 
 #include <cstdint>
+#include <stdio.h>
+#include <string.h>
 
 struct Segment
 {
     uint16_t sourcePort : 16;
-    uint16_t destPort;
+    uint16_t destPort : 16;
     // todo continue
-
+    uint32_t sequenceNumber : 32;
+    uint32_t acknowledgementNumber : 32;
     struct
     {
         unsigned int data_offset : 4;
@@ -19,10 +22,20 @@ struct Segment
     {
         unsigned int cwr : 1;
         // todo continue ...
+        unsigned int ece : 1;
+        unsigned int urg : 1;
+        unsigned int ack : 1;
+        unsigned int psh : 1;
+        unsigned int rst : 1;
+        unsigned int syn : 1;
+        unsigned int fin : 1;
     } flags;
 
-    uint16_t window;
+    uint16_t window : 16;
     // todo continue
+    uint16_t checkSum : 16;
+    uint16_t urgentPointer : 16;
+    uint32_t *options;
     uint8_t *payload;
 } __attribute__((packed));
 
@@ -31,6 +44,8 @@ const uint8_t SYN_FLAG = 2;
 const uint8_t ACK_FLAG = 16;
 const uint8_t SYN_ACK_FLAG = SYN_FLAG | ACK_FLAG;
 const uint8_t FIN_ACK_FLAG = FIN_FLAG | ACK_FLAG;
+
+Segment initializeSegment();
 
 /**
  * Generate Segment that contain SYN packet
