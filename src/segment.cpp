@@ -67,21 +67,46 @@ uint16_t computeChecksum(const uint8_t *data, size_t length) {
     return static_cast<uint16_t>(~sum);
 }
 
-// Calculate checksum
-uint8_t *calculateChecksum(Segment segment) {
-    size_t segmentLength = sizeof(Segment);
-    uint8_t *buffer = new uint8_t[segmentLength];
-    memset(buffer, 0, segmentLength);
+uint8_t *calculateChecksum(Segment segment)
+{
+    uint32_t sum = 0;
 
-    memcpy(buffer, &segment, sizeof(Segment));
+    sum += segment.sourcePort;
+    sum += segment.destPort;
 
-    uint16_t checksum = computeChecksum(buffer, segmentLength);
-    delete[] buffer;
+    sum += (segment.sequenceNumber >> 16) & 0xFFFF;
+    sum += segment.sequenceNumber & 0xFFFF;
+    sum += (segment.acknowledgementNumber >> 16) & 0xFFFF;
+    sum += segment.acknowledgementNumber & 0xFFFF;
 
-    uint8_t *result = new uint8_t[2];
-    result[0] = checksum >> 8;
-    result[1] = checksum & 0xFF;
-    return result;
+    sum += (segment.data_offset << 12) | (segment.reserved << 8) |
+           (segment.flags.fin | (segment.flags.syn << 1) | (segment.flags.rst << 2) |
+            (segment.flags.psh << 3) | (segment.flags.ack << 4) | (segment.flags.urg << 5) | (segment.flags.ece << 6) | (segment.flags.cwr << 7));
+
+    sum += segment.window;
+    sum += segment.urgentPointer;
+
+    if (segment.payload)
+    {
+        size_t payloadSize = strlen(reinterpret_cast<const char *>(segment.payload));
+        for (size_t i = 0; i < payloadSize; i += 2)
+        {
+            uint16_t word = (segment.payload[i] << 8) | (i + 1 < payloadSize ? segment.payload[i + 1] : 0);
+            sum += word;
+        }
+    }
+
+    while (sum >> 16)
+    {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    uint16_t checksum = ~static_cast<uint16_t>(sum);
+    auto *checksumBytes = new uint8_t[2];
+    checksumBytes[0] = (checksum >> 8) & 0xFF;
+    checksumBytes[1] = checksum & 0xFF;
+
+    return checksumBytes;
 }
 
 Segment updateChecksum(Segment segment) {
@@ -91,16 +116,10 @@ Segment updateChecksum(Segment segment) {
     return segment;
 }
 
-bool isValidChecksum(Segment segment) {
-    uint16_t originalChecksum = segment.checkSum;
-
-    segment.checkSum = 0;
-
-    uint8_t *calculated = calculateChecksum(segment);
-    uint16_t recalculatedChecksum = (calculated[0] << 8) | calculated[1];
-    delete[] calculated;
-
-    segment.checkSum = originalChecksum;
-
-    return originalChecksum == recalculatedChecksum;
+bool isValidChecksum(const Segment &segment)
+{
+    uint8_t *checksumBytes = calculateChecksum(segment);
+    uint16_t checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    delete[] checksumBytes;
+    return checkSum+segment.checkSum == 0xFFFF;
 }
