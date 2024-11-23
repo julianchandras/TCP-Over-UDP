@@ -66,3 +66,18 @@ Segment finAck()
     faSeg.flags.ack = ACK_FLAG;
     return faSeg;
 }
+
+uint16_t computeChecksum(const uint8_t *data, size_t length) {
+    uint32_t sum = 0;
+
+    for (size_t i = 0; i < length; i += 2) {
+        uint16_t word = (data[i] << 8) | (i + 1 < length ? data[i + 1] : 0);
+        sum += word;
+    }
+
+    while (sum >> 16) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    return static_cast<uint16_t>(~sum);
+}
