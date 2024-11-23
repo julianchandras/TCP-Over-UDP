@@ -1,6 +1,6 @@
 #include <iostream>
-#include "../include/client.hpp"
-#include "../include/server.hpp"
+#include "client.hpp"
+#include "server.hpp"
 
 using namespace std;
 

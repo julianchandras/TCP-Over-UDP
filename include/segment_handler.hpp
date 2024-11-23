@@ -4,6 +4,8 @@
 #include "segment.hpp"
 #include <vector>
 
+using namespace std;
+
 class SegmentHandler
 {
 private:

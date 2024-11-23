@@ -1,46 +1,42 @@
-#include "../include/CSPRNG.hpp"
+#include "CSPRNG.hpp"
+#include <iostream>
+#include <stdexcept>
+#include <cstdint>
 
-class CSPRNG
+CSPRNG::CSPRNG()
 {
-public:
-    CSPRNG::CSPRNG()
+    urandom.open("/dev/urandom", std::ios::in | std::ios::binary);
+    if (!urandom.is_open())
     {
-        urandom.open("/dev/urandom", std::ios::in | std::ios::binary);
-        if (!urandom.is_open())
-        {
-            throw std::runtime_error("Failed to open /dev/urandom");
-        }
+        throw std::runtime_error("Failed to open /dev/urandom");
     }
+}
 
-    CSPRNG::~CSPRNG()
+CSPRNG::~CSPRNG()
+{
+    if (urandom.is_open())
     {
-        if (urandom.is_open())
-        {
-            urandom.close();
-        }
+        urandom.close();
     }
+}
 
-    uint32_t CSPRNG::getRandomUInt32()
+uint32_t CSPRNG::getRandomUInt32()
+{
+    uint32_t randomValue;
+    urandom.read(reinterpret_cast<char *>(&randomValue), sizeof(randomValue));
+    if (!urandom)
     {
-        uint32_t randomValue;
-        urandom.read(reinterpret_cast<char *>(&randomValue), sizeof(randomValue));
-        if (!urandom)
-        {
-            throw std::runtime_error("Failed to read from /dev/urandom");
-        }
-        return randomValue;
+        throw std::runtime_error("Failed to read from /dev/urandom");
     }
+    return randomValue;
+}
 
-    uint32_t CSPRNG::getRandomInRange(uint32_t min, uint32_t max)
+uint32_t CSPRNG::getRandomInRange(uint32_t min, uint32_t max)
+{
+    if (min > max)
     {
-        if (min > max)
-        {
-            throw std::invalid_argument("Invalid range: min > max");
-        }
-        uint32_t range = max - min + 1;
-        return min + (getRandomUInt32() % range);
+        throw std::invalid_argument("Invalid range: min > max");
     }
-
-private:
-    std::ifstream urandom;
-};
+    uint32_t range = max - min + 1;
+    return min + (getRandomUInt32() % range);
+}

@@ -6,6 +6,7 @@
 #include <functional>
 #include "segment.hpp"
 #include "segment_handler.hpp"
+#include "CSPRNG.hpp"
 
 using namespace std;
 
@@ -51,12 +52,14 @@ private:
 
     TCPStatusEnum status;
 
+    CSPRNG *rand;
+
 public:
     TCPSocket(string ip, int32_t port);
     TCPStatusEnum getStatus();
 
     void listen();
-    void connect(int32_t port);
+    void connect(string ip, int32_t port);
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
     void close();

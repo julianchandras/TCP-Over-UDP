@@ -1,4 +1,4 @@
-#include "../include/segment.hpp"
+#include "segment.hpp"
 
 Segment initializeSegment()
 {
@@ -7,7 +7,7 @@ Segment initializeSegment()
     seg.options = nullptr;
     seg.payload = nullptr;
     seg.reserved = 0;     // sebenarnya seharusnya udh 0 gr2 memset, ini biar penjelas aja sih
-    seg.data_offset = 20; // minimun is 20 bytes
+    seg.data_offset = 20; // minimum is 20 bytes
     return seg;
 }
 
