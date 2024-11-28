@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-const size_t BASE_SEGMENT_SIZE = sizeof(Segment) - sizeof(uint32_t*) - sizeof(uint8_t*);
-
 struct Segment
 {
     uint16_t sourcePort : 16;
@@ -46,6 +44,8 @@ const uint8_t SYN_FLAG = 2;
 const uint8_t ACK_FLAG = 16;
 const uint8_t SYN_ACK_FLAG = SYN_FLAG | ACK_FLAG;
 const uint8_t FIN_ACK_FLAG = FIN_FLAG | ACK_FLAG;
+
+const size_t BASE_SEGMENT_SIZE = sizeof(Segment) - sizeof(uint32_t*) - sizeof(uint8_t*);
 
 Segment initializeSegment();
 
@@ -88,5 +88,10 @@ Segment updateChecksum(Segment segment);
  * Check if a TCP Segment has a valid checksum
  */
 bool isValidChecksum(Segment segment);
+
+/**
+ * Convert the flags to uint8_t
+ */
+uint8_t flagsToByte(Segment segment);
 
 #endif
