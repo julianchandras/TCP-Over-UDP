@@ -20,6 +20,12 @@ TCPSocket::TCPSocket(string ip, int32_t port) {
     address.sin_addr.s_addr = stoi(this->ip);
 
     bind(this->socket, (struct sockaddr*)&address, sizeof(address));
+
+    segmentHandler = new SegmentHandler();
+}
+
+TCPSocket::~TCPSocket() {
+    delete segmentHandler;
 }
 
 TCPStatusEnum TCPSocket::getStatus() {

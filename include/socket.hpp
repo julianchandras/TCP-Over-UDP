@@ -56,6 +56,8 @@ private:
 
 public:
     TCPSocket(string ip, int32_t port);
+    ~TCPSocket();
+    
     TCPStatusEnum getStatus();
 
     void listen();

@@ -1,6 +1,7 @@
 #ifndef segment_handler_h
 #define segment_handler_h
 
+#include <vector>
 #include "segment.hpp"
 #include <vector>
 

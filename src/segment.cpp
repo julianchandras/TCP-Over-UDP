@@ -11,9 +11,6 @@ Segment initializeSegment()
     return seg;
 }
 
-/**
- * Generate Segment that contain SYN packet
- */
 Segment syn(uint32_t seqNum)
 {
     Segment synSeg = initializeSegment();
@@ -22,9 +19,6 @@ Segment syn(uint32_t seqNum)
     return synSeg;
 }
 
-/**
- * Generate Segment that contain ACK packet
- */
 Segment ack(uint32_t seqNum, uint32_t ackNum)
 {
     Segment ackSeg = initializeSegment();
@@ -34,9 +28,6 @@ Segment ack(uint32_t seqNum, uint32_t ackNum)
     return ackSeg;
 }
 
-/**
- * Generate Segment that contain SYN-ACK packet
- */
 Segment synAck(uint32_t seqNum)
 {
     Segment saSeg = initializeSegment();
@@ -46,9 +37,6 @@ Segment synAck(uint32_t seqNum)
     return saSeg;
 }
 
-/**
- * Generate Segment that contain FIN packet
- */
 Segment fin()
 {
     Segment finSeg = initializeSegment();
@@ -56,13 +44,82 @@ Segment fin()
     return finSeg;
 }
 
-/**
- * Generate Segment that contain FIN-ACK packet
- */
 Segment finAck()
 {
     Segment faSeg = initializeSegment();
     faSeg.flags.fin = FIN_FLAG;
     faSeg.flags.ack = ACK_FLAG;
     return faSeg;
+}
+
+uint16_t computeChecksum(const uint8_t *data, size_t length) {
+    uint32_t sum = 0;
+    
+    for (size_t i = 0; i < length; i += 2) {
+        uint16_t word = (data[i] << 8) | (i + 1 < length ? data[i + 1] : 0);
+        sum += word;
+    }
+
+    while (sum >> 16) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    return static_cast<uint16_t>(~sum);
+}
+
+uint8_t *calculateChecksum(Segment segment)
+{
+    uint32_t sum = 0;
+
+    sum += segment.sourcePort;
+    sum += segment.destPort;
+
+    sum += (segment.sequenceNumber >> 16) & 0xFFFF;
+    sum += segment.sequenceNumber & 0xFFFF;
+    sum += (segment.acknowledgementNumber >> 16) & 0xFFFF;
+    sum += segment.acknowledgementNumber & 0xFFFF;
+
+    sum += (segment.data_offset << 12) | (segment.reserved << 8) |
+           (segment.flags.fin | (segment.flags.syn << 1) | (segment.flags.rst << 2) |
+            (segment.flags.psh << 3) | (segment.flags.ack << 4) | (segment.flags.urg << 5) | (segment.flags.ece << 6) | (segment.flags.cwr << 7));
+
+    sum += segment.window;
+    sum += segment.urgentPointer;
+
+    if (segment.payload)
+    {
+        size_t payloadSize = strlen(reinterpret_cast<const char *>(segment.payload));
+        for (size_t i = 0; i < payloadSize; i += 2)
+        {
+            uint16_t word = (segment.payload[i] << 8) | (i + 1 < payloadSize ? segment.payload[i + 1] : 0);
+            sum += word;
+        }
+    }
+
+    while (sum >> 16)
+    {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+
+    uint16_t checksum = ~static_cast<uint16_t>(sum);
+    auto *checksumBytes = new uint8_t[2];
+    checksumBytes[0] = (checksum >> 8) & 0xFF;
+    checksumBytes[1] = checksum & 0xFF;
+
+    return checksumBytes;
+}
+
+Segment updateChecksum(Segment segment) {
+    uint8_t *checksumBytes = calculateChecksum(segment);
+    segment.checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    delete[] checksumBytes;
+    return segment;
+}
+
+bool isValidChecksum(const Segment &segment)
+{
+    uint8_t *checksumBytes = calculateChecksum(segment);
+    uint16_t checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    delete[] checksumBytes;
+    return checkSum+segment.checkSum == 0xFFFF;
 }
