@@ -22,15 +22,15 @@ uint8_t *serializeSegment(Segment *toBeSent, size_t optionsLen, size_t payloadLe
     return buffer;
 }
 
-void deserializeToSegment(Segment *to, uint8_t *buffer, size_t nBytes)
+void deserializeToSegment(Segment *segment, uint8_t *buffer, size_t nBytes)
 {
     // copies only the header without options
-    memcpy(to, buffer, BASE_SEGMENT_SIZE);
+    memcpy(segment, buffer, BASE_SEGMENT_SIZE);
     size_t optionsLen = 0; // asumsi ga ada options, srsly buat apa
     size_t payloadLen = nBytes - BASE_SEGMENT_SIZE - optionsLen;
     // Allocate and copy payload
-    to->payload = (uint8_t *)malloc(payloadLen);
-    memcpy(to->payload, buffer + BASE_SEGMENT_SIZE + optionsLen, payloadLen);
+    segment->payload = (uint8_t *)malloc(payloadLen);
+    memcpy(segment->payload, buffer + BASE_SEGMENT_SIZE + optionsLen, payloadLen);
 }
 
 void printSegment(const Segment &seg, size_t payloadLen)
