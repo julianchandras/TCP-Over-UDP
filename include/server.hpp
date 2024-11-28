@@ -7,10 +7,9 @@ class Server : public Node
 {
 private:
     void handleMessage(void *buffer);
-    
+
 public:
     Server(string ip, int32_t port);
-
     void run();
 };
 

@@ -1,9 +1,11 @@
 #include "client.hpp"
+#include "utils.hpp"
 #include <iostream>
 
 Client::Client(string ip, int32_t port) : Node(ip, port) {}
 
-void Client::run() {
+void Client::run()
+{
     string serverHost;
     int32_t serverPort;
 
@@ -22,14 +24,16 @@ void Client::run() {
     // this->connection->connect(this->serverPort)
 
     // UDP Trial
-    
-    char buffer[1024];
-    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
-    buffer[bytesRead] = '\0';
 
-    cout << "[+] Received from server: " << buffer << endl;
+    uint8_t buffer[1460]; // the preferred maximum size of the payload is 1460 bytes.
+    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
+
+    // suppose a random segment is available
+    Segment testSegRec = initializeSegment();
+    deserializeToSegment(&testSegRec, buffer, bytesRead);
+    printSegment(testSegRec, 200);
 }
 
-void Client::handleMessage(void *buffer) {
-
+void Client::handleMessage(void *buffer)
+{
 }
