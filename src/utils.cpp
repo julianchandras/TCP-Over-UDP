@@ -4,38 +4,36 @@
 
 using namespace std;
 
-uint8_t *serializeSegment(Segment *toBeSent, size_t options_len, size_t payload_len)
+uint8_t *serializeSegment(Segment *toBeSent, size_t optionsLen, size_t payloadLen)
 {
-    size_t base_size = sizeof(*toBeSent) - sizeof(toBeSent->options) - sizeof(toBeSent->payload);
-    size_t total_size = base_size + options_len + payload_len;
+    size_t total_size = BASE_SEGMENT_SIZE + optionsLen + payloadLen;
 
-    uint8_t *buffer = (uint8_t *)malloc(total_size);
+    uint8_t *buffer = (uint8_t *) malloc(total_size);
     if (!buffer)
     {
         perror("malloc");
     }
     // masukkin isi segment tanpa option sama payload ke buffer
-    memcpy(buffer, toBeSent, base_size);
+    memcpy(buffer, toBeSent, BASE_SEGMENT_SIZE);
     // masukkin option
-    memcpy(buffer + base_size, toBeSent->options, options_len);
+    memcpy(buffer + BASE_SEGMENT_SIZE, toBeSent->options, optionsLen);
     // masukkin payload
-    memcpy(buffer + base_size + options_len, toBeSent->payload, payload_len);
+    memcpy(buffer + BASE_SEGMENT_SIZE + optionsLen, toBeSent->payload, payloadLen);
     return buffer;
 }
 
 void deserializeToSegment(Segment *to, uint8_t *buffer, size_t nBytes)
 {
-    size_t base_size = sizeof(*to) - sizeof(to->options) - sizeof(to->payload);
     // copies only the header without options
-    memcpy(to, buffer, base_size);
-    size_t options_len = 0; // asumsi ga ada options, srsly buat apa
-    size_t payload_len = nBytes - base_size - options_len;
+    memcpy(to, buffer, BASE_SEGMENT_SIZE);
+    size_t optionsLen = 0; // asumsi ga ada options, srsly buat apa
+    size_t payloadLen = nBytes - BASE_SEGMENT_SIZE - optionsLen;
     // Allocate and copy payload
-    to->payload = (uint8_t *)malloc(payload_len);
-    memcpy(to->payload, buffer + base_size + options_len, payload_len);
+    to->payload = (uint8_t *)malloc(payloadLen);
+    memcpy(to->payload, buffer + BASE_SEGMENT_SIZE + optionsLen, payloadLen);
 }
 
-void printSegment(const Segment &seg, size_t payload_len)
+void printSegment(const Segment &seg, size_t payloadLen)
 {
     cout << "Segment Header Information:" << endl;
     cout << "  Source Port: " << seg.sourcePort << endl;
@@ -56,9 +54,9 @@ void printSegment(const Segment &seg, size_t payload_len)
     cout << "  Checksum: " << seg.checkSum << endl;
     cout << "  Urgent Pointer: " << seg.urgentPointer << endl;
 
-    cout << "\nPayload (" << payload_len << " bytes):" << endl;
+    cout << "\nPayload (" << payloadLen << " bytes):" << endl;
     cout << "  ";
-    for (size_t i = 0; i < payload_len; ++i)
+    for (size_t i = 0; i < payloadLen; ++i)
     {
         cout << seg.payload[i];
     }

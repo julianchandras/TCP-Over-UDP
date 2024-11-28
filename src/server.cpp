@@ -41,8 +41,7 @@ void Server::run()
     // the above line is important since the server itself must listen to handshake request
 
     // Try to send a UDP Datagram
-    size_t base_size = sizeof(testSeg) - sizeof(testSeg.options) - sizeof(testSeg.payload);
-    size_t total_size = base_size + 0 + payloadSize; // option len dianggap 0, idk option buat apa tbh
+    size_t total_size = BASE_SEGMENT_SIZE + 0 + payloadSize; // option len dianggap 0, idk option buat apa tbh
     this->connection->send("127.0.0.1", 5679, buffer, total_size);
     cout << "[+] User input has been successfully received." << endl;
     cout << "[+] Data sent to client." << endl;

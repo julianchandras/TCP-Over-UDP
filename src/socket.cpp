@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <netinet/in.h>
+#include "utils.hpp"
 
 using namespace std;
 
@@ -44,8 +45,9 @@ void TCPSocket::listen() {
 
 void TCPSocket::connect(string ip, int32_t port) {
     Segment synSeg = syn(rand->getRandomUInt32());
+    uint8_t *synSegBuf = serializeSegment(&synSeg, 0, 0);
 
-    // sendto(this->socket, )
+    sendto(this->socket, synSegBuf, sizeof(synSegBuf))
 }
 
 void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize) {

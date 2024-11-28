@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+const size_t BASE_SEGMENT_SIZE = sizeof(Segment) - sizeof(uint32_t*) - sizeof(uint8_t*);
+
 struct Segment
 {
     uint16_t sourcePort : 16;
