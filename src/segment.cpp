@@ -79,9 +79,7 @@ uint8_t *calculateChecksum(Segment segment)
     sum += (segment.acknowledgementNumber >> 16) & 0xFFFF;
     sum += segment.acknowledgementNumber & 0xFFFF;
 
-    sum += (segment.data_offset << 12) | (segment.reserved << 8) |
-           (segment.flags.fin | (segment.flags.syn << 1) | (segment.flags.rst << 2) |
-            (segment.flags.psh << 3) | (segment.flags.ack << 4) | (segment.flags.urg << 5) | (segment.flags.ece << 6) | (segment.flags.cwr << 7));
+    sum += (segment.data_offset << 12) | (segment.reserved << 8) | flagsToByte(segment);
 
     sum += segment.window;
     sum += segment.urgentPointer;
@@ -109,17 +107,25 @@ uint8_t *calculateChecksum(Segment segment)
     return checksumBytes;
 }
 
-Segment updateChecksum(Segment segment) {
+Segment updateChecksum(Segment segment)
+{
     uint8_t *checksumBytes = calculateChecksum(segment);
     segment.checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
     delete[] checksumBytes;
     return segment;
 }
 
-bool isValidChecksum(const Segment &segment)
+bool isValidChecksum(Segment segment)
 {
     uint8_t *checksumBytes = calculateChecksum(segment);
     uint16_t checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
     delete[] checksumBytes;
     return checkSum+segment.checkSum == 0xFFFF;
+}
+
+uint8_t flagsToByte(Segment segment)
+{
+    return (segment.flags.fin | (segment.flags.syn << 1) | (segment.flags.rst << 2) |
+            (segment.flags.psh << 3) | (segment.flags.ack << 4) | (segment.flags.urg << 5) |
+            (segment.flags.ece << 6) | (segment.flags.cwr << 7));
 }
