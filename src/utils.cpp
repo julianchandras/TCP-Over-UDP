@@ -1,0 +1,66 @@
+#include "utils.hpp"
+#include <stdlib.h>
+#include <iostream>
+
+using namespace std;
+
+uint8_t *serializeSegment(Segment *toBeSent, size_t options_len, size_t payload_len)
+{
+    size_t base_size = sizeof(*toBeSent) - sizeof(toBeSent->options) - sizeof(toBeSent->payload);
+    size_t total_size = base_size + options_len + payload_len;
+
+    uint8_t *buffer = (uint8_t *)malloc(total_size);
+    if (!buffer)
+    {
+        perror("malloc");
+    }
+    // masukkin isi segment tanpa option sama payload ke buffer
+    memcpy(buffer, toBeSent, base_size);
+    // masukkin option
+    memcpy(buffer + base_size, toBeSent->options, options_len);
+    // masukkin payload
+    memcpy(buffer + base_size + options_len, toBeSent->payload, payload_len);
+    return buffer;
+}
+
+void deserializeToSegment(Segment *to, uint8_t *buffer, size_t nBytes)
+{
+    size_t base_size = sizeof(*to) - sizeof(to->options) - sizeof(to->payload);
+    // copies only the header without options
+    memcpy(to, buffer, base_size);
+    size_t options_len = 0; // asumsi ga ada options, srsly buat apa
+    size_t payload_len = nBytes - base_size - options_len;
+    // Allocate and copy payload
+    to->payload = (uint8_t *)malloc(payload_len);
+    memcpy(to->payload, buffer + base_size + options_len, payload_len);
+}
+
+void printSegment(const Segment &seg, size_t payload_len)
+{
+    cout << "Segment Header Information:" << endl;
+    cout << "  Source Port: " << seg.sourcePort << endl;
+    cout << "  Destination Port: " << seg.destPort << endl;
+    cout << "  Sequence Number: " << seg.sequenceNumber << endl;
+    cout << "  Acknowledgment Number: " << seg.acknowledgementNumber << endl;
+    cout << "  Data Offset: " << seg.data_offset << endl;
+    cout << "  Flags: " << endl;
+    cout << "    CWR: " << seg.flags.cwr << endl;
+    cout << "    ECE: " << seg.flags.ece << endl;
+    cout << "    URG: " << seg.flags.urg << endl;
+    cout << "    ACK: " << seg.flags.ack << endl;
+    cout << "    PSH: " << seg.flags.psh << endl;
+    cout << "    RST: " << seg.flags.rst << endl;
+    cout << "    SYN: " << seg.flags.syn << endl;
+    cout << "    FIN: " << seg.flags.fin << endl;
+    cout << "  Window: " << seg.window << endl;
+    cout << "  Checksum: " << seg.checkSum << endl;
+    cout << "  Urgent Pointer: " << seg.urgentPointer << endl;
+
+    cout << "\nPayload (" << payload_len << " bytes):" << endl;
+    cout << "  ";
+    for (size_t i = 0; i < payload_len; ++i)
+    {
+        cout << seg.payload[i];
+    }
+    cout << endl;
+}
