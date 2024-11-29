@@ -40,7 +40,7 @@ void printSegment(const Segment &seg, size_t payloadLen)
     cout << "  Destination Port: " << seg.destPort << endl;
     cout << "  Sequence Number: " << seg.sequenceNumber << endl;
     cout << "  Acknowledgment Number: " << seg.acknowledgementNumber << endl;
-    cout << "  Data Offset: " << seg.data_offset << endl;
+    cout << "  Data Offset: " << seg.dataOffset << endl;
     cout << "  Flags: " << endl;
     cout << "    CWR: " << seg.flags.cwr << endl;
     cout << "    ECE: " << seg.flags.ece << endl;

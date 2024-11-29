@@ -7,7 +7,7 @@ Segment initializeSegment()
     seg.options = nullptr;
     seg.payload = nullptr;
     seg.reserved = 0;     // sebenarnya seharusnya udh 0 gr2 memset, ini biar penjelas aja sih
-    seg.data_offset = 20; // minimum is 20 bytes
+    seg.dataOffset = 20; // minimum is 20 bytes
     return seg;
 }
 
@@ -15,7 +15,7 @@ Segment syn(uint32_t seqNum)
 {
     Segment synSeg = initializeSegment();
     synSeg.sequenceNumber = seqNum;
-    synSeg.flags.syn = SYN_FLAG;
+    synSeg.flags.syn = 1;
     return synSeg;
 }
 
@@ -24,31 +24,32 @@ Segment ack(uint32_t seqNum, uint32_t ackNum)
     Segment ackSeg = initializeSegment();
     ackSeg.sequenceNumber = seqNum;
     ackSeg.acknowledgementNumber = ackNum;
-    ackSeg.flags.ack = ACK_FLAG;
+    ackSeg.flags.ack = 1;
     return ackSeg;
 }
 
-Segment synAck(uint32_t seqNum)
+Segment synAck(uint32_t seqNum, uint32_t ackNum)
 {
     Segment saSeg = initializeSegment();
     saSeg.sequenceNumber = seqNum;
-    saSeg.flags.syn = SYN_FLAG;
-    saSeg.flags.ack = ACK_FLAG;
+    saSeg.acknowledgementNumber = ackNum;
+    saSeg.flags.syn = 1;
+    saSeg.flags.ack = 1;
     return saSeg;
 }
 
 Segment fin()
 {
     Segment finSeg = initializeSegment();
-    finSeg.flags.fin = FIN_FLAG;
+    finSeg.flags.fin = 1;
     return finSeg;
 }
 
 Segment finAck()
 {
     Segment faSeg = initializeSegment();
-    faSeg.flags.fin = FIN_FLAG;
-    faSeg.flags.ack = ACK_FLAG;
+    faSeg.flags.fin = 1;
+    faSeg.flags.ack = 1;
     return faSeg;
 }
 
@@ -79,7 +80,7 @@ uint8_t *calculateChecksum(Segment segment)
     sum += (segment.acknowledgementNumber >> 16) & 0xFFFF;
     sum += segment.acknowledgementNumber & 0xFFFF;
 
-    sum += (segment.data_offset << 12) | (segment.reserved << 8) | flagsToByte(segment);
+    sum += (segment.dataOffset << 12) | (segment.reserved << 8) | flagsToByte(segment);
 
     sum += segment.window;
     sum += segment.urgentPointer;

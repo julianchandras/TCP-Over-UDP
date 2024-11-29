@@ -14,7 +14,7 @@ struct Segment
     uint32_t acknowledgementNumber : 32;
     struct
     {
-        uint8_t data_offset : 4;
+        uint8_t dataOffset : 4;
         uint8_t reserved : 4;
     };
 
@@ -62,7 +62,7 @@ Segment ack(uint32_t seqNum, uint32_t ackNum);
 /**
  * Generate Segment that contain SYN-ACK packet
  */
-Segment synAck(uint32_t seqNum);
+Segment synAck(uint32_t seqNum, uint32_t ackNum);
 
 /**
  * Generate Segment that contain FIN packet
