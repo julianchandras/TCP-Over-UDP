@@ -40,8 +40,8 @@ private:
     /**
      * The ip address and port for the remote (connected) socket instance
      */
-    string remote_ip;
-    int32_t remote_port;
+    string remoteIp;
+    int32_t remotePort;
 
     /**
      * Socket descriptor
