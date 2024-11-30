@@ -161,7 +161,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_port = htons(port);
-    clientAddress.sin_addr.s_addr = stoi(ip);
+    if (inet_pton(AF_INET, this->ip.c_str(), &clientAddress.sin_addr) <= 0) {
+        perror("Invalid IP address");
+    }
 
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr*)&clientAddress, sizeof(clientAddress));
 }
