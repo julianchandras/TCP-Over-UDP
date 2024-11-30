@@ -19,11 +19,7 @@ void Client::run()
     this->serverIp = serverHost;
     this->serverPort = serverPort;
 
-    // cout << "[+] Trying to contact the sender at " << this->serverIp << ":" << this->serverPort << endl;
-    // TODO: handshake
-    // this->connection->connect(this->serverPort)
-
-    // UDP Trial
+    this->connection->connect(this->serverIp, this->serverPort);
 
     uint8_t buffer[1460]; // the preferred maximum size of the payload is 1460 bytes.
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
