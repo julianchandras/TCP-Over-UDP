@@ -22,12 +22,16 @@ void Client::run()
     this->connection->connect(this->serverIp, this->serverPort);
 
     uint8_t buffer[1460]; // the preferred maximum size of the payload is 1460 bytes.
-    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
+    while (true)
+    {
+        int bytesRead = this->connection->recv(buffer, sizeof(buffer));
+        // suppose a random segment is available
+        Segment testSegRec = initializeSegment();
+        deserializeToSegment(&testSegRec, buffer, bytesRead);
+        printSegment(testSegRec, 1460);
+    }
+    
 
-    // suppose a random segment is available
-    Segment testSegRec = initializeSegment();
-    deserializeToSegment(&testSegRec, buffer, bytesRead);
-    printSegment(testSegRec, 200);
 }
 
 void Client::handleMessage(void *buffer)

@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "segment_handler.hpp"
 #include "utils.hpp"
 
 using namespace std;
@@ -25,12 +26,12 @@ TCPSocket::TCPSocket(string ip, int32_t port) {
 
     bind(this->socket, (struct sockaddr*)&address, sizeof(address));
 
-    segmentHandler = new SegmentHandler();
+    // segmentHandler = new SegmentHandler();
     rand = new CSPRNG();
 }
 
 TCPSocket::~TCPSocket() {
-    delete segmentHandler;
+    // delete segmentHandler;
 }
 
 TCPStatusEnum TCPSocket::getStatus() {
