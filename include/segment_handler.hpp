@@ -2,7 +2,6 @@
 #define segment_handler_h
 
 #include "segment.hpp"
-#include "socket.hpp"
 #include <iostream>
 #include <vector>
 

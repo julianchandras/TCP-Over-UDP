@@ -6,7 +6,7 @@
 #include <functional>
 #include <vector>
 #include "segment.hpp"
-// #include "segment_handler.hpp"
+#include "segment_handler.hpp"
 #include "CSPRNG.hpp"
 
 using namespace std;
@@ -49,7 +49,7 @@ private:
      */
     int32_t socket;
 
-    // SegmentHandler *segmentHandler;
+    SegmentHandler *segmentHandler;
 
     TCPStatusEnum status;
 
