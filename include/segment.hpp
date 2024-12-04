@@ -45,7 +45,7 @@ const uint8_t ACK_FLAG = 16;
 const uint8_t SYN_ACK_FLAG = SYN_FLAG | ACK_FLAG;
 const uint8_t FIN_ACK_FLAG = FIN_FLAG | ACK_FLAG;
 
-const size_t BASE_SEGMENT_SIZE = sizeof(Segment) - sizeof(uint32_t*) - sizeof(uint8_t*);
+const size_t BASE_SEGMENT_SIZE = sizeof(Segment) - sizeof(uint32_t *) - sizeof(uint8_t *);
 
 Segment initializeSegment();
 

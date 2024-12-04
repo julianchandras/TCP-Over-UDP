@@ -65,6 +65,7 @@ public:
     int getSWS();
     int getLAR();
     int getLFS();
+    uint32_t getRandomSeqNum();
     void setSWS(int windowSize);
     void setLAR(int seqNumber);
     void setLFS(int seqNumber);

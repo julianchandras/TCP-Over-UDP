@@ -193,7 +193,6 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     {
         throw runtime_error("Failed to receive data");
     }
-
     return bytesRead;
 }
 
@@ -225,4 +224,9 @@ void TCPSocket::setLAR(int seqNumber)
 void TCPSocket::setLFS(int seqNumber)
 {
     this->lfs = seqNumber;
+}
+
+uint32_t TCPSocket::getRandomSeqNum()
+{
+    return this->rand->getRandomUInt32();
 }
