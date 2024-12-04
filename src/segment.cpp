@@ -7,7 +7,7 @@ Segment initializeSegment()
     seg.options = nullptr;
     seg.payload = nullptr;
     seg.reserved = 0;     // sebenarnya seharusnya udh 0 gr2 memset, ini biar penjelas aja sih
-    seg.dataOffset = 20; // minimum is 20 bytes
+    seg.dataOffset = 5;
     return seg;
 }
 

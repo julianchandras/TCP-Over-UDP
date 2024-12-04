@@ -36,9 +36,14 @@ int main(int argc, char* argv[]) {
         cout << "[+] Node is now a receiver" << endl;
     }
 
-    node->run();
+    try {
+        node->run();
+        return 0;
+    } catch (const std::exception& e) {
+        cerr << "[!] An error occured: " << e.what() << endl;
+        return -1;
+    }
 
-    return 0;
 }
 
 Node::~Node() {

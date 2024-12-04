@@ -7,8 +7,8 @@
 
 using namespace std;
 
-const uint8_t MAX_PAYLOAD_SIZE = 1460;
-const uint8_t MAX_SEGMENT_SIZE = 1500;
+const uint16_t MAX_PAYLOAD_SIZE = 1460;
+const uint16_t MAX_SEGMENT_SIZE = 1480;
 
 class SegmentHandler
 {

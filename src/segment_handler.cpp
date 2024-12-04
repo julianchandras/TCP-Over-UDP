@@ -4,6 +4,13 @@
 
 using namespace std;
 
+SegmentHandler::SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint32_t currentAckNum)
+{
+    this->windowSize = windowSize;
+    this->currentSeqNum = currentSeqNum;
+    this->currentAckNum = currentAckNum;
+}
+
 // sepertinya mencacah datastream mjd sekumpulan segment yang dimasukkan segmentBuffer
 // asumsi segment pertama adalah segment SYN, lalu segment data
 void SegmentHandler::generateSegments()
