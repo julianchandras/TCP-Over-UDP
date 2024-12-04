@@ -30,8 +30,12 @@ void Client::run()
         deserializeToSegment(&testSegRec, buffer, bytesRead);
         printSegment(testSegRec, 1460);
     }
-    
+    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
 
+    // suppose a random segment is available
+    Segment testSegRec = initializeSegment();
+    deserializeToSegment(&testSegRec, buffer, bytesRead);
+    printSegment(testSegRec, 200);
 }
 
 void Client::handleMessage(void *buffer)
