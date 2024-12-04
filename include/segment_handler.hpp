@@ -21,7 +21,7 @@ private:
 
 public:
     void sendData(TCPSocket *socket, string input);
-    void generateSegments(string input);
+    void generateSegments(string input, uint32_t initialSeqNum);
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
     Segment *advanceWindow(uint8_t size);
