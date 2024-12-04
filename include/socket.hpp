@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <string>
 #include <functional>
+#include <vector>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
@@ -54,11 +55,22 @@ private:
 
     CSPRNG *rand;
 
+    uint32_t sws = 0; // sent window size
+    uint32_t lar = 0; // last ack received
+    uint32_t lfs = 0; // last frame sent
+
+    uint32_t rws = 0; // received window size
+    uint32_t lfr = 0; // last frame received
+    uint32_t laf = 0; // largest acceptable frame
+
+    vector<Segment*> window;
+
 public:
     TCPSocket(string ip, int32_t port);
     ~TCPSocket();
     
     TCPStatusEnum getStatus();
+    uint32_t getRandomSeqNum();
 
     void listen();
     void connect(string ip, int32_t port);
