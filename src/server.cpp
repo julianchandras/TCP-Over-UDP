@@ -1,11 +1,14 @@
 #include "server.hpp"
+#include "segment_handler.hpp"
 #include <iostream>
+#include "utils.hpp"
 
 using namespace std;
 
 Server::Server(string ip, int32_t port) : Node(ip, port) {}
 
-void Server::run() {
+void Server::run()
+{
     cout << "[?] Please choose the sending mode" << endl;
     cout << "[?] 1. User input" << endl;
     cout << "[?] 2. File input" << endl;
@@ -16,7 +19,6 @@ void Server::run() {
 
     // TODO: separate user/file input logic
     string input;
-
     cout << "[?] User input mode chosen, please enter your input: ";
     cin.ignore();
     getline(cin, input);
@@ -49,6 +51,6 @@ void Server::run() {
     // free(buffer);
 }
 
-void Server::handleMessage(void *buffer) {
-
+void Server::handleMessage(void *buffer)
+{
 }

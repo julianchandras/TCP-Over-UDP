@@ -4,9 +4,29 @@
 
 using namespace std;
 
+void SegmentHandler::sendData(TCPSocket *socket, string input)
+{
+    generateSegments(input, socket->getRandomSeqNum());
+
+    vector<Segment>::iterator myItr;
+
+    uint32_t i = 1;
+
+    for (myItr = this->segmentBuffer.begin(); myItr != this->segmentBuffer.end(); myItr++)
+    {
+        cout << myItr->payload << " " << endl
+             << i << endl;
+        uint8_t *buffer = serializeSegment(&(*myItr), 0, 1460);
+        socket->send("127.0.0.1", 5679, buffer, 1460);
+        i++;
+    }
+
+    cout << "SEND DATA" << endl;
+}
+
 // sepertinya mencacah datastream mjd sekumpulan segment yang dimasukkan segmentBuffer
 // asumsi segment pertama adalah segment SYN, lalu segment data
-void SegmentHandler::generateSegments()
+void SegmentHandler::generateSegments(string input, uint32_t initialSeqNum)
 {
     uint32_t bytesProcessed = 0;
     uint32_t sequenceNumber = this->currentSeqNum;

@@ -21,7 +21,6 @@ private:
     vector<Segment> segmentBuffer;
     uint32_t dataSize;
     uint32_t dataIndex;
-    void generateSegments();
 
 public:
     SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint32_t currentAckNum);

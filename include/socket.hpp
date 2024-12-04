@@ -6,7 +6,7 @@
 #include <functional>
 #include <vector>
 #include "segment.hpp"
-#include "segment_handler.hpp"
+// #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
 
 using namespace std;
@@ -41,15 +41,15 @@ private:
     /**
      * The ip address and port for the remote (connected) socket instance
      */
-    string remote_ip;
-    int32_t remote_port;
+    string remoteIp;
+    int32_t remotePort;
 
     /**
      * Socket descriptor
      */
     int32_t socket;
 
-    SegmentHandler *segmentHandler;
+    // SegmentHandler *segmentHandler;
 
     TCPStatusEnum status;
 
@@ -68,7 +68,7 @@ private:
 public:
     TCPSocket(string ip, int32_t port);
     ~TCPSocket();
-    
+
     TCPStatusEnum getStatus();
     uint32_t getRandomSeqNum();
 

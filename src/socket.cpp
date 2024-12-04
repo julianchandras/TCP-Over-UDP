@@ -7,21 +7,26 @@
 
 using namespace std;
 
-TCPSocket::TCPSocket(string ip, int32_t port) {
+TCPSocket::TCPSocket(string ip, int32_t port)
+{
     this->ip = ip;
     this->port = port;
 
     this->socket = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (this->socket == -1) {
+    if (this->socket == -1)
+    {
         throw new runtime_error("Failed to create socket");
     }
 
     sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(this->port);
-    address.sin_addr.s_addr = stoi(this->ip);
+    if (inet_pton(AF_INET, this->ip.c_str(), &address.sin_addr) <= 0)
+    {
+        perror("Invalid IP address");
+    }
 
-    bind(this->socket, (struct sockaddr*)&address, sizeof(address));
+    bind(this->socket, (struct sockaddr *)&address, sizeof(address));
 
     this->rand = new CSPRNG();
 }
@@ -31,7 +36,8 @@ TCPSocket::~TCPSocket()
     delete segmentHandler;
 }
 
-TCPStatusEnum TCPSocket::getStatus() {
+TCPStatusEnum TCPSocket::getStatus()
+{
     return this->status;
 }
 
@@ -114,16 +120,58 @@ void TCPSocket::connect(string ip, int32_t port)
     int broadcast_value = 1;
     setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
 
-    cout << "[i] Listening to the broadcast port for clients." << endl;
+    struct sockaddr_in destAddr;
+    memset(&destAddr, 0, sizeof(destAddr));
+    destAddr.sin_family = AF_INET;
+    destAddr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, ip.c_str(), &destAddr.sin_addr) <= 0)
+    {
+        perror("Invalid IP address");
+    }
+
+    cout << "[+] [Handshake] [S=" << seqNum << "] Sending SYN request to " << ip << ":" << port << endl;
+
+    sendto(this->socket, synSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+
+    // SYN SENT STATE
+    this->status = SYN_SENT;
+
+    struct sockaddr_in remoteAddr;
+    socklen_t remoteAddrLen = sizeof(remoteAddr);
+
+    uint8_t recvBuf[BASE_SEGMENT_SIZE];
+    ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                  (struct sockaddr *)&remoteAddr, &remoteAddrLen);
+
+    Segment synAckSeg;
+    deserializeToSegment(&synAckSeg, recvBuf, recvBufLen);
+
+    if (flagsToByte(synAckSeg) == SYN_ACK_FLAG && synAckSeg.acknowledgementNumber == ++seqNum)
+    {
+        cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
+             << "] Received SYN-ACK request from " << ip << ":" << port << endl;
+
+        Segment ackSeg = ack(seqNum, synAckSeg.sequenceNumber + 1);
+        uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+
+        cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << ip << ":" << port << endl;
+
+        sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+
+        this->status = ESTABLISHED;
+        this->remoteIp = ip;
+        this->remotePort = port;
+    }
 }
 
-void TCPSocket::connect(string ip, int32_t port) {
-    Segment synSeg = syn(rand->getRandomUInt32());
-
-    // sendto(this->socket, )
-}
-
-void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize) {
+void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize)
+{
+    if (this->status != ESTABLISHED)
+    {
+        cout << "[i] Connection has not been established" << endl;
+        return;
+    }
     sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_port = htons(port);
@@ -169,19 +217,20 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     //     i++;
     // }
 
-    sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr*)&clientAddress, sizeof(clientAddress));
+    sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
 }
 
-int32_t TCPSocket::recv(void *buffer, uint32_t length) {
+int32_t TCPSocket::recv(void *buffer, uint32_t length)
+{
     sockaddr_in serverAddress;
     socklen_t serverAddressLen = sizeof(serverAddress);
 
-    int32_t bytesRead = recvfrom(this->socket, buffer, length, 0, 
-                                 (struct sockaddr*)&serverAddress, &serverAddressLen);
-    if (bytesRead < 0) {
+    ssize_t bytesRead = recvfrom(this->socket, buffer, length, 0,
+                                 (struct sockaddr *)&serverAddress, &serverAddressLen);
+    if (bytesRead < 0)
+    {
         throw runtime_error("Failed to receive data");
     }
-
     return bytesRead;
 }
 
