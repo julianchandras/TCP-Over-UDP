@@ -16,6 +16,7 @@ SegmentHandler::SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint3
 void SegmentHandler::generateSegments()
 {
     uint32_t bytesProcessed = 0;
+    uint32_t sequenceNumber = this->currentSeqNum;
     
     this->segmentBuffer.clear();
 
@@ -24,23 +25,21 @@ void SegmentHandler::generateSegments()
 
     for (uint16_t i = 0; i < numOfSegments; i++)
     {
-        Segment seg;
+        Segment temp;
         size_t offset = MAX_PAYLOAD_SIZE * i;
-        size_t payloadSize = (i == numOfSegments - 1) ? (this->dataSize - offset) : MAX_PAYLOAD_SIZE;
-        
-        seg.sequenceNumber = this->currentSeqNum;
-        seg.payload = (uint8_t *)malloc(payloadSize);
+        temp.sequenceNumber = sequenceNumber + offset;
+        size_t copySize = (i == numOfSegments - 1) ? (this->dataSize - offset) : MAX_PAYLOAD_SIZE;
+        temp.payload = (uint8_t *)malloc(copySize);
 
-        if (seg.payload == nullptr)
+        if (temp.payload == nullptr)
         {
             cerr << "Error: Memory allocation failed for payload!" << endl;
             return;
         }
 
-        memcpy(seg.payload, this->dataStream + offset, payloadSize);
-        this->segmentBuffer.push_back(seg);
+        memcpy(temp.payload, this->dataStream + offset, copySize);
 
-        this->currentSeqNum += offset;
+        this->segmentBuffer.push_back(temp);
     }
 }
 
