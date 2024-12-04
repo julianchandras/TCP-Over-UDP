@@ -53,12 +53,21 @@ private:
     TCPStatusEnum status;
 
     CSPRNG *rand;
+    int sws = 0; // sent window size
+    int lar = 0; // last ack received
+    int lfs = 0; // last frame sent
 
 public:
     TCPSocket(string ip, int32_t port);
     ~TCPSocket();
-    
+
     TCPStatusEnum getStatus();
+    int getSWS();
+    int getLAR();
+    int getLFS();
+    void setSWS(int windowSize);
+    void setLAR(int seqNumber);
+    void setLFS(int seqNumber);
 
     void listen();
     void connect(string ip, int32_t port);
