@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include "segment_handler.hpp"
 #include <iostream>
 #include "utils.hpp"
 
@@ -24,28 +25,31 @@ void Server::run()
 
     this->connection->listen();
 
-    // putting input into a segment aka adding tcp header
-    Segment testSeg = ack(69, 69);
-    size_t payloadSize = input.size();
-    testSeg.payload = (uint8_t *)malloc(payloadSize);
-    if (testSeg.payload == nullptr)
-    {
-        cerr << "Error: Memory allocation failed for payload!" << endl;
-        return;
-    }
-    memcpy(testSeg.payload, input.c_str(), payloadSize);
-    cout << "[+] Payload inserted" << endl;
+    SegmentHandler segHand;
+    segHand.sendData(this->connection, input);
 
-    // serialize aka jadiin segment mjd bytes
-    uint8_t *buffer = serializeSegment(&testSeg, 0, payloadSize);
-    cout << "[+] Segment serialized " << endl;
+    // // putting input into a segment aka adding tcp header
+    // Segment testSeg = ack(69, 69);
+    // size_t payloadSize = input.size();
+    // testSeg.payload = (uint8_t *)malloc(payloadSize);
+    // if (testSeg.payload == nullptr)
+    // {
+    //     cerr << "Error: Memory allocation failed for payload!" << endl;
+    //     return;
+    // }
+    // memcpy(testSeg.payload, input.c_str(), payloadSize);
+    // cout << "[+] Payload inserted" << endl;
 
-    // Try to send a UDP Datagram
-    size_t total_size = BASE_SEGMENT_SIZE + 0 + payloadSize; // option len dianggap 0, idk option buat apa tbh
-    this->connection->send("127.0.0.1", 5679, buffer, total_size);
-    cout << "[+] User input has been successfully received." << endl;
-    cout << "[+] Data sent to client." << endl;
-    free(buffer);
+    // // serialize aka jadiin segment mjd bytes
+    // uint8_t *buffer = serializeSegment(&testSeg, 0, payloadSize);
+    // cout << "[+] Segment serialized " << endl;
+
+    // // Try to send a UDP Datagram
+    // size_t total_size = BASE_SEGMENT_SIZE + 0 + payloadSize; // option len dianggap 0, idk option buat apa tbh
+    // this->connection->send("127.0.0.1", 5679, buffer, total_size);
+    // cout << "[+] User input has been successfully received." << endl;
+    // cout << "[+] Data sent to client." << endl;
+    // free(buffer);
 }
 
 void Server::handleMessage(void *buffer)

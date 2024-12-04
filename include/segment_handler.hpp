@@ -3,7 +3,8 @@
 
 #include <vector>
 #include "segment.hpp"
-#include <vector>
+#include "socket.hpp"
+#include <iostream>
 
 using namespace std;
 
@@ -17,9 +18,10 @@ private:
     vector<Segment> segmentBuffer;
     uint32_t dataSize;
     uint32_t dataIndex;
-    void generateSegments();
 
 public:
+    void sendData(TCPSocket *socket, string input);
+    void generateSegments(string input);
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
     Segment *advanceWindow(uint8_t size);
