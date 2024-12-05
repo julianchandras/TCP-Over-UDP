@@ -4,9 +4,16 @@
 #include <sys/socket.h>
 #include <string>
 #include <functional>
+#include <vector>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <map>
 #include "segment.hpp"
-// #include "segment_handler.hpp"
+#include "segment_handler.hpp"
 #include "CSPRNG.hpp"
+
+#define time_stamp chrono::high_resolution_clock::time_point
 
 using namespace std;
 
@@ -38,39 +45,37 @@ private:
     int32_t port;
 
     /**
-     * The ip address and port for the remote (connected) socket instance
-     */
-    string remoteIp;
-    int32_t remotePort;
-
-    /**
      * Socket descriptor
      */
     int32_t socket;
 
-    // SegmentHandler *segmentHandler;
+    SegmentHandler *segmentHandler;
 
     TCPStatusEnum status;
 
     CSPRNG *rand;
-    int sws = 0; // sent window size
-    int lar = 0; // last ack received
-    int lfs = 0; // last frame sent
+
+    uint32_t sws = 0; // sent window size
+    uint32_t lar = 0; // last ack received
+    uint32_t lfs = 0; // last frame sent
+
+    uint32_t rws = 0; // received window size
+    uint32_t lfr = 0; // last frame received
+    uint32_t laf = 0; // largest acceptable frame
+
+    vector<Segment *> window;
+    // cuman buat server
+
+    mutex serverLock;
+    void listenACK(string ip, int32_t port);
 
 public:
     TCPSocket(string ip, int32_t port);
     ~TCPSocket();
 
     TCPStatusEnum getStatus();
-    int getSWS();
-    int getLAR();
-    int getLFS();
-    uint32_t getRandomSeqNum();
-    void setSWS(int windowSize);
-    void setLAR(int seqNumber);
-    void setLFS(int seqNumber);
 
-    void listen();
+    pair<string, int32_t> listen();
     void connect(string ip, int32_t port);
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);

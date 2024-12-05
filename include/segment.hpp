@@ -14,7 +14,7 @@ struct Segment
     uint32_t acknowledgementNumber : 32;
     struct
     {
-        uint8_t dataOffset : 4;
+        uint8_t dataOffset : 4; // the unit for dataOffset is word (per 4 bytes)
         uint8_t reserved : 4;
     };
 

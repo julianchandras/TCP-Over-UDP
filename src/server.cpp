@@ -1,7 +1,8 @@
 #include "server.hpp"
 #include "segment_handler.hpp"
-#include <iostream>
 #include "utils.hpp"
+#include <iostream>
+#include <arpa/inet.h>
 
 using namespace std;
 
@@ -23,11 +24,16 @@ void Server::run()
     cin.ignore();
     getline(cin, input);
 
-    this->connection->listen();
-        
+    size_t dataSize = input.size();
+    uint8_t *dataStream = (uint8_t *)malloc(dataSize);
 
-    SegmentHandler segHand;
-    segHand.sendData(this->connection, input);
+    memcpy(dataStream, input.c_str(), dataSize);
+
+    auto [clientIp, clientPort] = this->connection->listen();
+    
+    this->connection->send(clientIp, clientPort, dataStream, dataSize);
+
+    // segHand.sendData(this->connection, input);
 
     // // putting input into a segment aka adding tcp header
     // Segment testSeg = ack(69, 69);

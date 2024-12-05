@@ -1,60 +1,55 @@
-#include "segment_handler.hpp"
-#include "segment.hpp"
+#include "segment_handler.hpp"  
 #include "utils.hpp"
 #include <iostream>
 
 using namespace std;
 
-void SegmentHandler::sendData(TCPSocket *socket, string input)
+SegmentHandler::SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint32_t currentAckNum)
 {
-    generateSegments(input, socket->getRandomSeqNum());
-
-    vector<Segment>::iterator myItr;
-
-    uint32_t i = 1;
-
-    for (myItr = this->segmentBuffer.begin(); myItr != this->segmentBuffer.end(); myItr++)
-    {
-        cout << myItr->payload << " " << endl
-             << i << endl;
-        uint8_t *buffer = serializeSegment(&(*myItr), 0, 1460);
-        socket->send("127.0.0.1", 5679, buffer, 1460);
-        i++;
-    }
-
-    cout << "SEND DATA" << endl;
+    this->windowSize = windowSize;
+    this->currentSeqNum = currentSeqNum;
+    this->currentAckNum = currentAckNum;
 }
 
 // sepertinya mencacah datastream mjd sekumpulan segment yang dimasukkan segmentBuffer
-// asumsi segment pertama adalah segment SYN, lalu segment data
-void SegmentHandler::generateSegments(string input, uint32_t initialSeqNum)
+void SegmentHandler::generateSegments()
 {
-    uint32_t bytesProcessed = 0;
-    uint32_t sequenceNumber = 0;
+    // uint32_t bytesProcessed = 0;
+    
     this->segmentBuffer.clear();
 
-    const char *inpBuf = input.c_str();
-
     // putting input into a segment aka adding tcp header
-    uint16_t numOfSegments = (input.length() / 1460) + 1;
+    uint16_t numOfSegments = (this->dataSize / MAX_PAYLOAD_SIZE) + 1;
 
     for (uint16_t i = 0; i < numOfSegments; i++)
     {
-        Segment temp;
-        size_t offset = 1460 * i;
-        temp.sequenceNumber = initialSeqNum + offset;
-        size_t copySize = (i == numOfSegments - 1) ? (input.length() - offset) : 1460;
-        temp.payload = (uint8_t *)malloc(copySize);
+        Segment seg = initializeSegment();
+        size_t offset = MAX_PAYLOAD_SIZE * i;
 
-        if (temp.payload == nullptr)
+        size_t payloadSize;
+        
+        if (i == numOfSegments - 1)
+        {
+            payloadSize = this->dataSize - offset;
+        }
+        else
+        {
+            payloadSize = MAX_PAYLOAD_SIZE;
+        }
+
+        seg.sequenceNumber = this->currentSeqNum;
+        seg.payload = (uint8_t *)malloc(payloadSize);
+
+        if (seg.payload == nullptr)
         {
             cerr << "Error: Memory allocation failed for payload!" << endl;
             return;
         }
 
-        memcpy(temp.payload, inpBuf + offset, copySize);
+        memcpy(seg.payload, this->dataStream + offset, payloadSize);
 
-        this->segmentBuffer.push_back(temp);
+        this->segmentBuffer.push_back(seg);
+        this->currentSeqNum += payloadSize;
     }
 }
 
@@ -62,16 +57,73 @@ void SegmentHandler::setDataStream(uint8_t *dataStream, uint32_t dataSize)
 {
     this->dataStream = dataStream;
     this->dataSize = dataSize;
+    this->dataIndex = 0;
 }
 
 uint8_t SegmentHandler::getWindowSize()
 {
-    uint8_t temp = 5;
-    return temp;
+    return this->windowSize;
 }
 
-Segment *SegmentHandler::advanceWindow(uint8_t size)
+vector<Segment*> SegmentHandler::advanceWindow(uint8_t size)
 {
-    Segment *segment;
-    return segment;
+    vector<Segment*> segmentList;
+
+    while (size > 0 && dataIndex < segmentBuffer.size())
+    {
+        Segment* segment = &segmentBuffer.at(dataIndex);
+        segmentList.push_back(segment);
+        dataIndex++;
+        size--;
+    }
+
+    return segmentList;
+}
+
+void SegmentHandler::appendSegmentBuffer(uint8_t *buffer, uint32_t length)
+{
+    Segment seg;
+    deserializeToSegment(&seg, buffer, length);
+
+    this->segmentBuffer.push_back(seg);
+}
+
+void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t dataSize)
+{
+    if (this->segmentBuffer.empty())
+    {
+        throw runtime_error("No segments to reconstruct the data stream!");
+    }
+
+    uint32_t index = 0;
+
+    auto lastIter = segmentBuffer.end() - 1;
+
+    for (auto iter = segmentBuffer.begin(); iter != segmentBuffer.end(); ++iter)
+    {
+        const Segment& seg = *iter;
+
+        uint32_t payloadSize;
+        if (iter != lastIter)
+        {
+            payloadSize = MAX_PAYLOAD_SIZE;
+        }
+        else
+        {
+            payloadSize = dataSize - index;
+        }
+        
+        if (index + payloadSize <= dataSize)
+        {
+            memcpy(dataStream + index, seg.payload, payloadSize);
+            index += payloadSize;
+        }
+        else
+        {
+            throw runtime_error("Provided buffer is too small to hold the full data stream!");
+            return;
+        }
+    }
+
+    dataSize = index;
 }
