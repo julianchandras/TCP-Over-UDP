@@ -41,7 +41,7 @@ TCPStatusEnum TCPSocket::getStatus()
     return this->status;
 }
 
-void TCPSocket::listen()
+pair<string, int32_t> TCPSocket::listen()
 {
     this->status = LISTEN;
 
@@ -100,11 +100,10 @@ void TCPSocket::listen()
                 cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Received ACK request from " << remoteIp << ":" << remotePort << endl;
 
                 this->status = ESTABLISHED;
-                this->remoteIp = ip;
-                this->remotePort = port;
 
-                // Is this correct? Our seq is the receiver ack and our ack is the receiver seq
                 segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, ackSeg.sequenceNumber);
+                
+                return {remoteIp, remotePort};
             }
         }
     }
@@ -160,8 +159,7 @@ void TCPSocket::connect(string ip, int32_t port)
         sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
         this->status = ESTABLISHED;
-        this->remoteIp = ip;
-        this->remotePort = port;
+        
     }
 }
 
@@ -209,16 +207,6 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
             cont = false;
         }
     }
-    // vector<Segment>::iterator myItr;
-
-    // for (myItr = this->segmentBuffer.begin(); myItr != this->segmentBuffer.end(); myItr++)
-    // {
-    //     cout << myItr->payload << " " << endl
-    //             << i << endl;
-    //     uint8_t *buffer = serializeSegment(&(*myItr), 0, 1460);
-    //     socket->send("127.0.0.1", 5679, buffer, 1460);
-    //     i++;
-    // }
 
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
 }
