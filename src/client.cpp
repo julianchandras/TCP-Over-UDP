@@ -22,6 +22,7 @@ void Client::run()
     this->connection->connect(this->serverIp, this->serverPort);
 
     uint8_t buffer[1460];
+    memset(buffer, 0, sizeof(buffer));
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
 
     // suppose a random segment is available

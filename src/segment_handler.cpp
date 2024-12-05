@@ -110,11 +110,12 @@ void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t dataSize)
         }
         else
         {
-            payloadSize = this->dataSize - index;
+            payloadSize = dataSize - index;
         }
         
         if (index + payloadSize <= dataSize)
         {
+            cout << reinterpret_cast<char*>(seg.payload) << endl;
             memcpy(dataStream + index, seg.payload, payloadSize);
             index += payloadSize;
         }

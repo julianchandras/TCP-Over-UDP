@@ -158,6 +158,8 @@ void TCPSocket::connect(string ip, int32_t port)
 
         sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
+        segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
+
         this->status = ESTABLISHED;
         
     }
@@ -183,6 +185,8 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     // Experimenting with segment handler
     this->segmentHandler->setDataStream((uint8_t *)dataStream, dataSize);
     this->segmentHandler->generateSegments();
+
+    cout << reinterpret_cast<char*>(dataStream) << endl;
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
@@ -216,12 +220,18 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     sockaddr_in serverAddress;
     socklen_t serverAddressLen = sizeof(serverAddress);
 
-    ssize_t bytesRead = recvfrom(this->socket, buffer, length, 0,
+    uint8_t recvBuffer[length];
+    memset(recvBuffer, 0, length);
+
+    ssize_t bytesRead = recvfrom(this->socket, recvBuffer, length, 0,
                                  (struct sockaddr *)&serverAddress, &serverAddressLen);
     if (bytesRead < 0)
     {
         throw runtime_error("Failed to receive data");
     }
+    this->segmentHandler->appendSegmentBuffer(recvBuffer, bytesRead);
+    this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+
     return bytesRead;
 }
 
