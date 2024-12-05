@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         node->run();
         return 0;
     } catch (const std::exception& e) {
-        cerr << "[!] An error occured: " << e.what() << endl;
+        cerr << "[!] ERROR: " << e.what() << endl;
         return -1;
     }
 

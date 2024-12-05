@@ -12,10 +12,9 @@ SegmentHandler::SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint3
 }
 
 // sepertinya mencacah datastream mjd sekumpulan segment yang dimasukkan segmentBuffer
-// asumsi segment pertama adalah segment SYN, lalu segment data
 void SegmentHandler::generateSegments()
 {
-    uint32_t bytesProcessed = 0;
+    // uint32_t bytesProcessed = 0;
     
     this->segmentBuffer.clear();
 
@@ -79,4 +78,52 @@ vector<Segment*> SegmentHandler::advanceWindow(uint8_t size)
     }
 
     return segmentList;
+}
+
+void SegmentHandler::appendSegmentBuffer(uint8_t *buffer, uint32_t length)
+{
+    Segment seg;
+    deserializeToSegment(&seg, buffer, length);
+
+    this->segmentBuffer.push_back(seg);
+}
+
+void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t dataSize)
+{
+    if (this->segmentBuffer.empty())
+    {
+        throw runtime_error("No segments to reconstruct the data stream!");
+    }
+
+    uint32_t index = 0;
+
+    auto lastIter = segmentBuffer.end() - 1;
+
+    for (auto iter = segmentBuffer.begin(); iter != segmentBuffer.end(); ++iter)
+    {
+        const Segment& seg = *iter;
+
+        uint32_t payloadSize;
+        if (iter != lastIter)
+        {
+            payloadSize = MAX_PAYLOAD_SIZE;
+        }
+        else
+        {
+            payloadSize = this->dataSize - index;
+        }
+        
+        if (index + payloadSize <= dataSize)
+        {
+            memcpy(dataStream + index, seg.payload, payloadSize);
+            index += payloadSize;
+        }
+        else
+        {
+            throw runtime_error("Provided buffer is too small to hold the full data stream!");
+            return;
+        }
+    }
+
+    dataSize = index;
 }

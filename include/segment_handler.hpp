@@ -28,6 +28,9 @@ public:
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
     vector<Segment*> advanceWindow(uint8_t size);
+
+    void appendSegmentBuffer(uint8_t *buffer, uint32_t length);
+    void getDatastream(uint8_t *dataStream, uint32_t dataSize);
 };
 
 #endif
