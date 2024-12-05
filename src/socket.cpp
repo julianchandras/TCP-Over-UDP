@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <thread>
+#include <mutex>
 #include "utils.hpp"
 
 using namespace std;
@@ -184,6 +186,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
 
     // Experimenting with segment handler
     this->segmentHandler->setDataStream((uint8_t *)dataStream, dataSize);
+    // tcp socket yang dimiliki node, memiliki segment handler
+    // segment handler ada segment buffer
+    // dengan generateSegments, segment buffer diisi dengan segment yang di set dari setDataStream
     this->segmentHandler->generateSegments();
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
@@ -192,9 +197,10 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     bool cont = true;
     while (cont)
     {
+        // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
         this->window = this->segmentHandler->advanceWindow(windowSize);
 
-        vector<Segment*>::iterator myItr;
+        vector<Segment *>::iterator myItr;
         for (myItr = this->window.begin(); myItr != this->window.end(); myItr++)
         {
             uint8_t *buffer = serializeSegment(*myItr, 0, MAX_PAYLOAD_SIZE);
@@ -217,6 +223,7 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     //     i++;
     // }
 
+    // ini buat apa ya ???
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
 }
 
@@ -241,4 +248,17 @@ void TCPSocket::close()
 uint32_t TCPSocket::getRandomSeqNum()
 {
     return this->rand->getRandomUInt32();
+}
+
+////server zone
+void TCPSocket::listenACK()
+{
+    while (true)
+    {
+        uint8_t recvBuf[BASE_SEGMENT_SIZE];
+        ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                      (struct sockaddr *)&remoteAddr, &remoteAddrLen);
+        Segment ackSeg;
+        deserializeToSegment(&ackSeg, recvBuf, recvBufLen);
+    }
 }

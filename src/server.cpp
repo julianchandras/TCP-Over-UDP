@@ -24,6 +24,7 @@ void Server::run()
     getline(cin, input);
 
     this->connection->listen();
+    // setelah ini kita coba this->connection->send()
         
     // segHand.sendData(this->connection, input);
 

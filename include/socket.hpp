@@ -65,6 +65,10 @@ private:
 
     vector<Segment*> window;
 
+    //cuman buat server
+    
+    void listenACK();
+
 public:
     TCPSocket(string ip, int32_t port);
     ~TCPSocket();
