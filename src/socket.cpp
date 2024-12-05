@@ -5,9 +5,13 @@
 #include <arpa/inet.h>
 #include <thread>
 #include <mutex>
+#include <chrono>
+#include <map>
 #include "utils.hpp"
 
 using namespace std;
+
+constexpr std::chrono::milliseconds TIMEOUT_DURATION(10);
 
 TCPSocket::TCPSocket(string ip, int32_t port)
 {
@@ -56,10 +60,10 @@ pair<string, int32_t> TCPSocket::listen()
     ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
                                   (struct sockaddr *)&remoteAddr, &remoteAddrLen);
 
-    char remoteIp[INET_ADDRSTRLEN];
+    char remoteIp[INET_ADDRSTRLEN]; // extract ip
     inet_ntop(AF_INET, &(remoteAddr.sin_addr), remoteIp, INET_ADDRSTRLEN);
 
-    uint16_t remotePort = ntohs(remoteAddr.sin_port);
+    uint16_t remotePort = ntohs(remoteAddr.sin_port); // extract port
 
     Segment synSeg;
     deserializeToSegment(&synSeg, recvBuf, recvBufLen);
@@ -190,6 +194,8 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
+    thread receiveACK(&TCPSocket::listenACK, &socket, ip, port);
+    map<int, chrono::time_point<chrono::steady_clock>> sendTimes;
 
     // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
     // Jika ternyata data size sudah < max-payload_size artinya kita serialize based on size itu aja
@@ -203,10 +209,29 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
         vector<Segment *>::iterator myItr;
         for (myItr = this->window.begin(); myItr != this->window.end(); myItr++)
         {
-            uint8_t *buffer = serializeSegment(*myItr, 0, MAX_PAYLOAD_SIZE);
-            sendto(this->socket, buffer, MAX_SEGMENT_SIZE, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
+            Segment *tempSeg = *myItr;
+            int seqNum = tempSeg->sequenceNumber;
+            // kalau belum ada di map atau melebihi timeout
+            if (sendTimes.find(seqNum) == sendTimes.end() || chrono::steady_clock::now() - sendTimes[seqNum] > TIMEOUT_DURATION)
+            {
+                uint8_t *buffer = serializeSegment(*myItr, 0, MAX_PAYLOAD_SIZE);
+                ssize_t sentLen = sendto(this->socket, buffer, MAX_SEGMENT_SIZE, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
+                if (sentLen < 0)
+                {
+                    perror("Error sending segment");
+                }
+                else
+                {
+                    // masukkan ke map ketika sudah di send
+                    sendTimes[seqNum] = std::chrono::steady_clock::now();
+                    this->lfs = seqNum;
+                }
+            }
         }
-
+        // calculate window size
+        serverLock.lock();
+        windowSize = (this->lfs - this->lar) / MAX_SEGMENT_SIZE;
+        serverLock.unlock();
         if (this->window.empty())
         {
             cont = false;
@@ -224,6 +249,7 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     // }
 
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
+    receiveACK.join();
 }
 
 int32_t TCPSocket::recv(void *buffer, uint32_t length)
@@ -245,14 +271,34 @@ void TCPSocket::close()
 }
 
 ////server zone
-void TCPSocket::listenACK()
+void TCPSocket::listenACK(string ip, int32_t port)
 {
     while (true)
     {
+        struct sockaddr_in remoteAddr;
+        socklen_t remoteAddrLen = sizeof(remoteAddr);
         uint8_t recvBuf[BASE_SEGMENT_SIZE];
         ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
                                       (struct sockaddr *)&remoteAddr, &remoteAddrLen);
         Segment ackSeg;
         deserializeToSegment(&ackSeg, recvBuf, recvBufLen);
+        char remoteIp[INET_ADDRSTRLEN];                   // extract ip
+        uint16_t remotePort = ntohs(remoteAddr.sin_port); // extract port
+        serverLock.lock();
+        if (ip == std::string(remoteIp) && remotePort == port) // only continue if get ack from the n that we made a handshake with
+        {
+            if (ackSeg.flags.ack)
+            {
+                if (ackSeg.acknowledgementNumber > this->lar && ackSeg.acknowledgementNumber <= this->lfs) // check if the ack number is within the window
+                {
+                    this->lar = ackSeg.acknowledgementNumber;
+                }
+            }
+        }
+        else
+        {
+            cout << "hah" << endl;
+        }
+        serverLock.unlock();
     }
 }
