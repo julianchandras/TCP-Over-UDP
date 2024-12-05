@@ -70,7 +70,6 @@ public:
     ~TCPSocket();
 
     TCPStatusEnum getStatus();
-    uint32_t getRandomSeqNum();
 
     void listen();
     void connect(string ip, int32_t port);

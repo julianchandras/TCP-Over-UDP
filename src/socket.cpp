@@ -189,6 +189,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
 
+    // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
+    // Jika ternyata data size sudah < max-payload_size artinya kita serialize based on size itu aja
+
     bool cont = true;
     while (cont)
     {
@@ -236,9 +239,4 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
 void TCPSocket::close()
 {
-}
-
-uint32_t TCPSocket::getRandomSeqNum()
-{
-    return this->rand->getRandomUInt32();
 }
