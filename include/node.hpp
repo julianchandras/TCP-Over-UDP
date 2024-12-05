@@ -2,6 +2,8 @@
 #define node_h
 
 #include "socket.hpp"
+#include <string>
+#include <vector>
 
 class Server;
 class Client;
@@ -13,6 +15,11 @@ class Client;
  */
 class Node
 {
+// private:
+//     static string resolveHostname(const string& hostname);
+//     static vector<pair<string, string>> getLocalInterfaces();
+//     static string calculateBroadcastAddress(const string& ip, const string& mask);
+
 protected:
     TCPSocket *connection;
 

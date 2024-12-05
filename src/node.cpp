@@ -9,6 +9,21 @@ Node::Node(string ip, int32_t port)
     this->connection = new TCPSocket(ip, port);
 }
 
+// string Node::resolveHostname(const string& hostname)
+// {
+    
+// }
+
+// vector<pair<string, string>> Node::getLocalInterfaces()
+// {
+    
+// }
+
+// string Node::calculateBroadcastAddress(const string& ip, const string& mask)
+// {
+    
+// }
+
 int main(int argc, char* argv[])
 {
     if (argc != 3)
