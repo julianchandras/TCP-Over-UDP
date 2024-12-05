@@ -4,12 +4,15 @@
 
 using namespace std;
 
-Node::Node(string ip, int32_t port) {
+Node::Node(string ip, int32_t port)
+{
     this->connection = new TCPSocket(ip, port);
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 3) {
+int main(int argc, char* argv[])
+{
+    if (argc != 3)
+    {
         cerr << "Usage: node [host] [port]" << endl;
         return 1;
     }
@@ -28,24 +31,30 @@ int main(int argc, char* argv[]) {
 
     Node* node = nullptr;
 
-    if (choice == 1) {
+    if (choice == 1)
+    {
         node = new Server(host, port);
         cout << "[+] Node is now a sender" << endl;
-    } else if (choice == 2) {
+    } else if (choice == 2)
+    {
         node = new Client(host, port);
         cout << "[+] Node is now a receiver" << endl;
     }
 
-    try {
+    try
+    {
         node->run();
         return 0;
-    } catch (const std::exception& e) {
-        cerr << "[!] An error occured: " << e.what() << endl;
+    }
+    catch (const std::exception& e)
+    {
+        cerr << "[!] ERROR: " << e.what() << endl;
         return -1;
     }
 
 }
 
-Node::~Node() {
+Node::~Node()
+{
     delete connection;
 }

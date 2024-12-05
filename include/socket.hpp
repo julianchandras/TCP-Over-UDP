@@ -39,12 +39,6 @@ private:
     int32_t port;
 
     /**
-     * The ip address and port for the remote (connected) socket instance
-     */
-    string remoteIp;
-    int32_t remotePort;
-
-    /**
      * Socket descriptor
      */
     int32_t socket;
@@ -74,9 +68,8 @@ public:
     ~TCPSocket();
 
     TCPStatusEnum getStatus();
-    uint32_t getRandomSeqNum();
 
-    void listen();
+    pair<string, int32_t> listen();
     void connect(string ip, int32_t port);
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);

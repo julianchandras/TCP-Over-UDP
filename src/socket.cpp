@@ -43,7 +43,7 @@ TCPStatusEnum TCPSocket::getStatus()
     return this->status;
 }
 
-void TCPSocket::listen()
+pair<string, int32_t> TCPSocket::listen()
 {
     this->status = LISTEN;
 
@@ -102,11 +102,10 @@ void TCPSocket::listen()
                 cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Received ACK request from " << remoteIp << ":" << remotePort << endl;
 
                 this->status = ESTABLISHED;
-                this->remoteIp = ip;
-                this->remotePort = port;
 
-                // Is this correct? Our seq is the receiver ack and our ack is the receiver seq
                 segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, ackSeg.sequenceNumber);
+
+                return {remoteIp, remotePort};
             }
         }
     }
@@ -162,8 +161,6 @@ void TCPSocket::connect(string ip, int32_t port)
         sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
         this->status = ESTABLISHED;
-        this->remoteIp = ip;
-        this->remotePort = port;
     }
 }
 
@@ -194,6 +191,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
 
+    // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
+    // Jika ternyata data size sudah < max-payload_size artinya kita serialize based on size itu aja
+
     bool cont = true;
     while (cont)
     {
@@ -223,7 +223,6 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     //     i++;
     // }
 
-    // ini buat apa ya ???
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
 }
 
@@ -243,11 +242,6 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
 void TCPSocket::close()
 {
-}
-
-uint32_t TCPSocket::getRandomSeqNum()
-{
-    return this->rand->getRandomUInt32();
 }
 
 ////server zone
