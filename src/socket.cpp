@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <thread>
+#include <mutex>
 #include "utils.hpp"
 
 using namespace std;
@@ -102,7 +104,7 @@ pair<string, int32_t> TCPSocket::listen()
                 this->status = ESTABLISHED;
 
                 segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, ackSeg.sequenceNumber);
-                
+
                 return {remoteIp, remotePort};
             }
         }
@@ -161,7 +163,6 @@ void TCPSocket::connect(string ip, int32_t port)
         segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
 
         this->status = ESTABLISHED;
-        
     }
 }
 
@@ -184,6 +185,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
 
     // Experimenting with segment handler
     this->segmentHandler->setDataStream((uint8_t *)dataStream, dataSize);
+    // tcp socket yang dimiliki node, memiliki segment handler
+    // segment handler ada segment buffer
+    // dengan generateSegments, segment buffer diisi dengan segment yang di set dari setDataStream
     this->segmentHandler->generateSegments();
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
@@ -195,9 +199,10 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     bool cont = true;
     while (cont)
     {
+        // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
         this->window = this->segmentHandler->advanceWindow(windowSize);
 
-        vector<Segment*>::iterator myItr;
+        vector<Segment *>::iterator myItr;
         for (myItr = this->window.begin(); myItr != this->window.end(); myItr++)
         {
             uint8_t *buffer = serializeSegment(*myItr, 0, MAX_PAYLOAD_SIZE);
@@ -209,6 +214,16 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
             cont = false;
         }
     }
+    // vector<Segment>::iterator myItr;
+
+    // for (myItr = this->segmentBuffer.begin(); myItr != this->segmentBuffer.end(); myItr++)
+    // {
+    //     cout << myItr->payload << " " << endl
+    //             << i << endl;
+    //     uint8_t *buffer = serializeSegment(&(*myItr), 0, 1460);
+    //     socket->send("127.0.0.1", 5679, buffer, 1460);
+    //     i++;
+    // }
 
     sendto(this->socket, dataStream, dataSize, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
 }
@@ -235,4 +250,17 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
 void TCPSocket::close()
 {
+}
+
+////server zone
+void TCPSocket::listenACK()
+{
+    while (true)
+    {
+        uint8_t recvBuf[BASE_SEGMENT_SIZE];
+        ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                      (struct sockaddr *)&remoteAddr, &remoteAddrLen);
+        Segment ackSeg;
+        deserializeToSegment(&ackSeg, recvBuf, recvBufLen);
+    }
 }
