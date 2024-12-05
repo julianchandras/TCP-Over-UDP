@@ -269,8 +269,25 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     {
         throw runtime_error("Failed to receive data");
     }
-    this->segmentHandler->appendSegmentBuffer(recvBuffer, bytesRead);
+
+    Segment seg;
+    deserializeToSegment(&seg, recvBuffer, length);
+
+    uint8_t ackReceived = flagsToByte(seg);
+
+    Segment ackSeg = ack(0, ackReceived + bytesRead - BASE_SEGMENT_SIZE);
+
+    this->segmentHandler->appendSegmentBuffer(&seg);
+
     this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+      
+    ssize_t bytesSent = sendto(this->socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
+                                (struct sockaddr *)&serverAddress, serverAddressLen);
+        
+    if (bytesSent < 0)
+    {
+        throw runtime_error("Failed to send data");
+    }
 
     return bytesRead;
 }

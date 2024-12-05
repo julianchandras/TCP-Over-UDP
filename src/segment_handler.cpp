@@ -80,12 +80,9 @@ vector<Segment*> SegmentHandler::advanceWindow(uint8_t size)
     return segmentList;
 }
 
-void SegmentHandler::appendSegmentBuffer(uint8_t *buffer, uint32_t length)
+void SegmentHandler::appendSegmentBuffer(Segment *seg)
 {
-    Segment seg;
-    deserializeToSegment(&seg, buffer, length);
-
-    this->segmentBuffer.push_back(seg);
+    this->segmentBuffer.push_back(*seg);
 }
 
 void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t dataSize)

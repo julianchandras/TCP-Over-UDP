@@ -29,7 +29,7 @@ public:
     uint8_t getWindowSize();
     vector<Segment *> advanceWindow(uint8_t size);
 
-    void appendSegmentBuffer(uint8_t *buffer, uint32_t length);
+    void appendSegmentBuffer(Segment *Seg);
     void getDatastream(uint8_t *dataStream, uint32_t dataSize);
 
     // cuman buat server
