@@ -196,7 +196,8 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
-    thread receiveACK(&TCPSocket::listenACK, &socket, ip, port);
+    
+    thread receiveACK([this, ip, port]() { this->listenACK(ip, port); });
     map<int, chrono::time_point<chrono::steady_clock>> sendTimes;
 
     // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
