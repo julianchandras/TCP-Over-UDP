@@ -5,9 +5,15 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <map>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
+
+#define time_stamp chrono::high_resolution_clock::time_point
 
 using namespace std;
 
@@ -57,11 +63,11 @@ private:
     uint32_t lfr = 0; // last frame received
     uint32_t laf = 0; // largest acceptable frame
 
-    vector<Segment*> window;
+    vector<Segment *> window;
+    // cuman buat server
 
-    //cuman buat server
-    
-    void listenACK();
+    mutex serverLock;
+    void listenACK(string ip, int32_t port);
 
 public:
     TCPSocket(string ip, int32_t port);
