@@ -186,8 +186,6 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     this->segmentHandler->setDataStream((uint8_t *)dataStream, dataSize);
     this->segmentHandler->generateSegments();
 
-    cout << reinterpret_cast<char*>(dataStream) << endl;
-
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
 

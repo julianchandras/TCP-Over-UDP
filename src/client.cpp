@@ -25,10 +25,8 @@ void Client::run()
     memset(buffer, 0, sizeof(buffer));
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
 
-    // suppose a random segment is available
-    Segment testSegRec = initializeSegment();
-    deserializeToSegment(&testSegRec, buffer, bytesRead);
-    printSegment(testSegRec, 200);
+    cout << "[i] Message received:" << endl;
+    cout << buffer << endl;
 }
 
 void Client::handleMessage(void *buffer)
