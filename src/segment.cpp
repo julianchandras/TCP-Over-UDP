@@ -38,16 +38,19 @@ Segment synAck(uint32_t seqNum, uint32_t ackNum)
     return saSeg;
 }
 
-Segment fin()
+Segment fin(uint32_t seqNum)
 {
     Segment finSeg = initializeSegment();
+    finSeg.sequenceNumber = seqNum;
     finSeg.flags.fin = 1;
     return finSeg;
 }
 
-Segment finAck()
+Segment finAck(uint32_t seqNumm, uint32_t ackNum)
 {
     Segment faSeg = initializeSegment();
+    faSeg.sequenceNumber = seqNumm;
+    faSeg.acknowledgementNumber = ackNum;
     faSeg.flags.fin = 1;
     faSeg.flags.ack = 1;
     return faSeg;

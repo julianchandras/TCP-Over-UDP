@@ -67,12 +67,12 @@ Segment synAck(uint32_t seqNum, uint32_t ackNum);
 /**
  * Generate Segment that contain FIN packet
  */
-Segment fin();
+Segment fin(uint32_t seqNum);
 
 /**
  * Generate Segment that contain FIN-ACK packet
  */
-Segment finAck();
+Segment finAck(uint32_t seqNumm, uint32_t ackNum);
 
 /**
  * Calculate checksum of a segment

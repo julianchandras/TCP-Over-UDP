@@ -79,7 +79,7 @@ public:
     void connect(string ip, int32_t port);
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
-    void close();
+    void close(string ip, int32_t port);
 };
 
 #endif

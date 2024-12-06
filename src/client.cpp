@@ -25,8 +25,7 @@ void Client::run()
     memset(buffer, 0, sizeof(buffer));
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
 
-    cout << "[i] Message received:" << endl;
-    cout << buffer << endl;
+    cout << "[i] Message received: " << buffer << endl;
 }
 
 void Client::handleMessage(void *buffer)

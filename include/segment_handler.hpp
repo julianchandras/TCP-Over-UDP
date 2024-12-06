@@ -27,6 +27,7 @@ public:
     void generateSegments();
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
+    uint32_t getCurrentSeqNum();
     vector<Segment *> advanceWindow(uint8_t size);
 
     void appendSegmentBuffer(Segment *Seg);

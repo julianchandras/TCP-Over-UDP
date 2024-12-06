@@ -182,7 +182,7 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     clientAddress.sin_port = htons(port);
     if (inet_pton(AF_INET, this->ip.c_str(), &clientAddress.sin_addr) <= 0)
     {
-        perror("Invalid IP address");
+        throw runtime_error("Invalid IP address");
     }
 
     this->window.clear();
@@ -203,6 +203,9 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
     // Jika ternyata data size sudah < max-payload_size artinya kita serialize based on size itu aja
 
+    cout << "[i] Sending input to " << ip << ":" << port << endl;
+
+    uint32_t numOfSegmentSent = 1;
     bool cont = true;
     while (cont)
     {
@@ -213,7 +216,7 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
         for (myItr = this->window.begin(); myItr != this->window.end(); myItr++)
         {
             Segment *tempSeg = *myItr;
-            int seqNum = tempSeg->sequenceNumber;
+            uint32_t seqNum = tempSeg->sequenceNumber;
             // kalau belum ada di map atau melebihi timeout
             if (sendTimes.find(seqNum) == sendTimes.end() || chrono::steady_clock::now() - sendTimes[seqNum] > TIMEOUT_DURATION)
             {
@@ -225,9 +228,13 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
                 }
                 else
                 {
+                    cout << "[i] [Established] [Seg "<< numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
+
                     // masukkan ke map ketika sudah di send
                     sendTimes[seqNum] = std::chrono::steady_clock::now();
                     this->lfs = seqNum;
+
+                    numOfSegmentSent++;
                 }
             }
         }
@@ -257,11 +264,15 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
 
 int32_t TCPSocket::recv(void *buffer, uint32_t length)
 {
+    cout << "[~] [Established] Waiting for segments to be sent" << endl;
+
     sockaddr_in serverAddress;
     socklen_t serverAddressLen = sizeof(serverAddress);
 
     uint8_t recvBuffer[length];
     memset(recvBuffer, 0, length);
+
+    uint32_t numOfSegmentReceived = 0;
 
     ssize_t bytesRead = recvfrom(this->socket, recvBuffer, length, 0,
                                  (struct sockaddr *)&serverAddress, &serverAddressLen);
@@ -270,20 +281,21 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
         throw runtime_error("Failed to receive data");
     }
 
+    numOfSegmentReceived++;
+
     Segment seg;
     deserializeToSegment(&seg, recvBuffer, length);
 
-    uint8_t ackReceived = flagsToByte(seg);
-
-    Segment ackSeg = ack(0, ackReceived + bytesRead - BASE_SEGMENT_SIZE);
+    Segment ackSeg = ack(0, seg.sequenceNumber + bytesRead - BASE_SEGMENT_SIZE);
 
     this->segmentHandler->appendSegmentBuffer(&seg);
-
     this->segmentHandler->getDatastream((uint8_t *)buffer, length);
-      
+
     ssize_t bytesSent = sendto(this->socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
                                 (struct sockaddr *)&serverAddress, serverAddressLen);
-        
+
+    cout << "[i] [Established] [Seg " << numOfSegmentReceived << "] [A=" << ackSeg.acknowledgementNumber << "] Sent" << endl;
+
     if (bytesSent < 0)
     {
         throw runtime_error("Failed to send data");
@@ -292,8 +304,14 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     return bytesRead;
 }
 
-void TCPSocket::close()
+void TCPSocket::close(string ip, int32_t port)
 {
+    Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
+    uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
+
+    
+    cout << "[i] [Closing] Sending FIN request to " << ip << ":" << port << endl;
+
 }
 
 ////server zone

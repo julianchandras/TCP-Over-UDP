@@ -65,6 +65,11 @@ uint8_t SegmentHandler::getWindowSize()
     return this->windowSize;
 }
 
+uint32_t SegmentHandler::getCurrentSeqNum()
+{
+    return this->currentSeqNum;
+}
+
 vector<Segment*> SegmentHandler::advanceWindow(uint8_t size)
 {
     vector<Segment*> segmentList;
