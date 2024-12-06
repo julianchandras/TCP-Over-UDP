@@ -27,14 +27,18 @@ TCPSocket::TCPSocket(string ip, int32_t port)
     sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(this->port);
+
+    /*
+    I think we should actually bind to a specif port and not INADDR_ANY, but somehow it can't receive message from the broadcast
+    However, using the debugger, when bound to the INADDR_ANY, address.sin_addr.s_addr has the same value with when it is bound to the input ip
+    
     if (inet_pton(AF_INET, this->ip.c_str(), &address.sin_addr) <= 0)
     {
         perror("Invalid IP address");
     }
+    */
 
-    // enable broadcasting
-    int broadcast_value = 1;
-    setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
+   address.sin_addr.s_addr = INADDR_ANY;
 
     bind(this->socket, (struct sockaddr *)&address, sizeof(address));
 
@@ -134,6 +138,10 @@ string TCPSocket::connect(string broadcastAddr, int32_t port)
     {
         perror("Invalid IP address");
     }
+
+    // enable broadcasting
+    int broadcast_value = 1;
+    setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
 
     cout << "[+] [Handshake] [S=" << seqNum << "] Sending SYN request to " << broadcastAddr << ":" << port << endl;
 
