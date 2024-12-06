@@ -32,6 +32,10 @@ TCPSocket::TCPSocket(string ip, int32_t port)
         perror("Invalid IP address");
     }
 
+    // enable broadcasting
+    int broadcast_value = 1;
+    setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
+
     bind(this->socket, (struct sockaddr *)&address, sizeof(address));
 
     this->rand = new CSPRNG();
@@ -115,27 +119,23 @@ pair<string, int32_t> TCPSocket::listen()
     }
 }
 
-void TCPSocket::connect(string ip, int32_t port)
+string TCPSocket::connect(string broadcastAddr, int32_t port)
 {
     uint32_t seqNum = rand->getRandomUInt32();
     Segment synSeg = syn(seqNum);
     uint8_t *synSegBuf = serializeSegment(&synSeg, 0, 0);
-
-    // enable broadcasting
-    int broadcast_value = 1;
-    setsockopt(this->socket, SOL_SOCKET, SO_BROADCAST, &broadcast_value, sizeof(broadcast_value));
 
     struct sockaddr_in destAddr;
     memset(&destAddr, 0, sizeof(destAddr));
     destAddr.sin_family = AF_INET;
     destAddr.sin_port = htons(port);
 
-    if (inet_pton(AF_INET, ip.c_str(), &destAddr.sin_addr) <= 0)
+    if (inet_pton(AF_INET, broadcastAddr.c_str(), &destAddr.sin_addr) <= 0)
     {
         perror("Invalid IP address");
     }
 
-    cout << "[+] [Handshake] [S=" << seqNum << "] Sending SYN request to " << ip << ":" << port << endl;
+    cout << "[+] [Handshake] [S=" << seqNum << "] Sending SYN request to " << broadcastAddr << ":" << port << endl;
 
     sendto(this->socket, synSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
@@ -154,19 +154,23 @@ void TCPSocket::connect(string ip, int32_t port)
 
     if (flagsToByte(synAckSeg) == SYN_ACK_FLAG && synAckSeg.acknowledgementNumber == ++seqNum)
     {
+        char remoteIp[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &(remoteAddr.sin_addr), remoteIp, INET_ADDRSTRLEN);
+
         cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
-             << "] Received SYN-ACK request from " << ip << ":" << port << endl;
+             << "] Received SYN-ACK request from " << remoteIp << ":" << port << endl;
 
         Segment ackSeg = ack(seqNum, synAckSeg.sequenceNumber + 1);
         uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
 
-        cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << ip << ":" << port << endl;
+        cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << remoteIp << ":" << port << endl;
 
         sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
         segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
 
         this->status = ESTABLISHED;
+        return remoteIp;
     }
 }
 
@@ -309,7 +313,6 @@ void TCPSocket::close(string ip, int32_t port)
     Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
     uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
 
-    
     cout << "[i] [Closing] Sending FIN request to " << ip << ":" << port << endl;
 
 }

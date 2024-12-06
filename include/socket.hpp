@@ -76,7 +76,12 @@ public:
     TCPStatusEnum getStatus();
 
     pair<string, int32_t> listen();
-    void connect(string ip, int32_t port);
+
+    /**
+     * This function sends a connection request to the broadcast address of the network
+     */
+    string connect(string broadcastAddr, int32_t port);
+
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
     void close(string ip, int32_t port);

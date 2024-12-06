@@ -6,20 +6,31 @@ Client::Client(string ip, int32_t port) : Node(ip, port) {}
 
 void Client::run()
 {
-    string serverHost;
+    string broadcastAddr;
     int32_t serverPort;
 
-    cout << "[?] Input the server program's host: ";
-    cin >> serverHost;
-    // Probably the above code should not exist since the client look for server through broadcast
+    auto interfaces = Node::getNetworkInterfaces();
+    for (const auto& interface : interfaces)
+    {
+        cout << "Interface: " << interface.name << endl;
+        cout << "  IP: " << interface.ip << endl;
+        cout << "  Broadcast: " << interface.broadcast << endl;
+    }
+
+    if (interfaces.size() > 2)
+    {
+        broadcastAddr = interfaces.at(2).broadcast;
+    }
+    else
+    {
+        broadcastAddr = interfaces.at(0).broadcast;
+    }
 
     cout << "[?] Input the server program's port: ";
     cin >> serverPort;
 
-    this->serverIp = serverHost;
     this->serverPort = serverPort;
-
-    this->connection->connect(this->serverIp, this->serverPort);
+    this->serverIp = this->connection->connect(broadcastAddr, this->serverPort);
 
     uint8_t buffer[1460];
     memset(buffer, 0, sizeof(buffer));

@@ -1,6 +1,8 @@
-#include <iostream>
 #include "client.hpp"
 #include "server.hpp"
+#include <iostream>
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 
 using namespace std;
 
@@ -9,20 +11,46 @@ Node::Node(string ip, int32_t port)
     this->connection = new TCPSocket(ip, port);
 }
 
-// string Node::resolveHostname(const string& hostname)
-// {
-    
-// }
+string Node::resolveHostname(const string& hostname)
+{
+    return "";
+}
 
-// vector<pair<string, string>> Node::getLocalInterfaces()
-// {
-    
-// }
+vector<NetworkInterface> Node::getNetworkInterfaces()
+{
+    vector<NetworkInterface> interfaces;
+    struct ifaddrs *ifap, *ifa;
+    char ipstr[INET6_ADDRSTRLEN];
 
-// string Node::calculateBroadcastAddress(const string& ip, const string& mask)
-// {
-    
-// }
+    if (getifaddrs(&ifap) == -1) {
+        throw std::runtime_error("Could not get interface addresses");
+    }
+
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next)
+    {
+        if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+        {
+            NetworkInterface iface;
+
+            iface.name = ifa->ifa_name;
+
+            // IP Address
+            struct sockaddr_in* sa = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr);
+            inet_ntop(AF_INET, &(sa->sin_addr), ipstr, sizeof(ipstr));
+            iface.ip = ipstr;
+
+            // Broadcast Address
+            struct sockaddr_in* broadaddr_sa = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_broadaddr);
+            inet_ntop(AF_INET, &(broadaddr_sa->sin_addr), ipstr, sizeof(ipstr));
+            iface.broadcast = ipstr;
+
+            interfaces.push_back(iface);
+        }
+    }
+
+    freeifaddrs(ifap);
+    return interfaces;
+}
 
 int main(int argc, char* argv[])
 {
@@ -61,7 +89,7 @@ int main(int argc, char* argv[])
         node->run();
         return 0;
     }
-    catch (const std::exception& e)
+    catch (const exception& e)
     {
         cerr << "[!] ERROR: " << e.what() << endl;
         return -1;
