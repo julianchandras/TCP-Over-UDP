@@ -19,10 +19,9 @@ Segment syn(uint32_t seqNum)
     return synSeg;
 }
 
-Segment ack(uint32_t seqNum, uint32_t ackNum)
+Segment ack(uint32_t ackNum)
 {
     Segment ackSeg = initializeSegment();
-    ackSeg.sequenceNumber = seqNum;
     ackSeg.acknowledgementNumber = ackNum;
     ackSeg.flags.ack = 1;
     return ackSeg;

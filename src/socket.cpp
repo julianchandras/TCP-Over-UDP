@@ -115,7 +115,7 @@ pair<string, int32_t> TCPSocket::listen()
 
                 this->status = ESTABLISHED;
 
-                segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, ackSeg.sequenceNumber);
+                segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.acknowledgementNumber);
 
                 return {remoteIp, remotePort};
             }
@@ -168,7 +168,7 @@ string TCPSocket::connect(string broadcastAddr, int32_t port)
         cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
              << "] Received SYN-ACK request from " << remoteIp << ":" << port << endl;
 
-        Segment ackSeg = ack(seqNum, synAckSeg.sequenceNumber + 1);
+        Segment ackSeg = ack(synAckSeg.sequenceNumber + 1);
         uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
 
         cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << remoteIp << ":" << port << endl;
@@ -192,7 +192,7 @@ void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSiz
     sockaddr_in clientAddress;
     clientAddress.sin_family = AF_INET;
     clientAddress.sin_port = htons(port);
-    if (inet_pton(AF_INET, this->ip.c_str(), &clientAddress.sin_addr) <= 0)
+    if (inet_pton(AF_INET, ip.c_str(), &clientAddress.sin_addr) <= 0)
     {
         throw runtime_error("Invalid IP address");
     }
@@ -298,7 +298,7 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     Segment seg;
     deserializeToSegment(&seg, recvBuffer, length);
 
-    Segment ackSeg = ack(0, seg.sequenceNumber + bytesRead - BASE_SEGMENT_SIZE);
+    Segment ackSeg = ack(seg.sequenceNumber + bytesRead - BASE_SEGMENT_SIZE);
 
     this->segmentHandler->appendSegmentBuffer(&seg);
     this->segmentHandler->getDatastream((uint8_t *)buffer, length);
@@ -321,8 +321,38 @@ void TCPSocket::close(string ip, int32_t port)
     Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
     uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
 
+    sockaddr_in clientAddress;
+    clientAddress.sin_family = AF_INET;
+    clientAddress.sin_port = htons(port);
+    if (inet_pton(AF_INET, ip.c_str(), &clientAddress.sin_addr) <= 0)
+    {
+        throw runtime_error("Invalid IP address");
+    }
+    socklen_t clientAddressLen = sizeof(clientAddress);
+
     cout << "[i] [Closing] Sending FIN request to " << ip << ":" << port << endl;
 
+    sendto(this->socket, finSegBuf, BASE_SEGMENT_SIZE, 0,
+            (struct sockaddr *)&clientAddress, clientAddressLen);
+
+    uint8_t recvBuf[BASE_SEGMENT_SIZE];
+    memset(recvBuf, 0, BASE_SEGMENT_SIZE);
+
+    ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                    (struct sockaddr *)&clientAddress, &clientAddressLen);
+
+    cout << "[+] [Closing] Received FIN-ACK request from " << ip << ":" << port << endl;
+
+    Segment finAckSeg;
+    deserializeToSegment(&finAckSeg, recvBuf, BASE_SEGMENT_SIZE);
+
+    if (flagsToByte(finAckSeg) && finAckSeg.acknowledgementNumber == finSeg.sequenceNumber + 1)
+    {
+        Segment ackSeg = ack(finAckSeg.sequenceNumber + 1);
+        uint8_t * ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+
+        cout << "[i] [Closing] Sending ACK request to " << ip << ":" << port << endl;
+    }
 }
 
 ////server zone

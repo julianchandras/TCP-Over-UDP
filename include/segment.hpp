@@ -57,7 +57,7 @@ Segment syn(uint32_t seqNum);
 /**
  * Generate Segment that contain ACK packet
  */
-Segment ack(uint32_t seqNum, uint32_t ackNum);
+Segment ack(uint32_t ackNum);
 
 /**
  * Generate Segment that contain SYN-ACK packet
