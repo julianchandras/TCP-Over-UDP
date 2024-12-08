@@ -8,6 +8,15 @@
 class Server;
 class Client;
 
+using namespace std;
+
+struct NetworkInterface
+{
+    string name;
+    string ip;
+    string broadcast;
+};
+
 /**
  * Abstract class.
  *
@@ -15,13 +24,13 @@ class Client;
  */
 class Node
 {
-// private:
-//     static string resolveHostname(const string& hostname);
-//     static vector<pair<string, string>> getLocalInterfaces();
-//     static string calculateBroadcastAddress(const string& ip, const string& mask);
+private:
+    static string resolveHostname(const string& hostname);
 
 protected:
     TCPSocket *connection;
+
+    static vector<NetworkInterface> getNetworkInterfaces();
 
 public:
     Node(string ip, int32_t port);

@@ -15,6 +15,8 @@
 
 #define time_stamp chrono::high_resolution_clock::time_point
 
+const uint8_t DEFAULT_WINDOW_SIZE = 7;
+
 using namespace std;
 
 // for references
@@ -55,11 +57,11 @@ private:
 
     CSPRNG *rand;
 
-    uint32_t sws = 0; // sent window size
+    uint32_t sws = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE; // sent window size
     uint32_t lar = 0; // last ack received
     uint32_t lfs = 0; // last frame sent
 
-    uint32_t rws = 0; // received window size
+    uint32_t rws = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE; // received window size
     uint32_t lfr = 0; // last frame received
     uint32_t laf = 0; // largest acceptable frame
 
@@ -67,6 +69,7 @@ private:
     // cuman buat server
 
     mutex serverLock;
+    bool terminateACK;
     void listenACK(string ip, int32_t port);
 
 public:
@@ -76,10 +79,15 @@ public:
     TCPStatusEnum getStatus();
 
     pair<string, int32_t> listen();
-    void connect(string ip, int32_t port);
+
+    /**
+     * This function sends a connection request to the broadcast address of the network
+     */
+    string connect(string broadcastAddr, int32_t port);
+
     void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
-    void close();
+    void close(string ip, int32_t port);
 };
 
 #endif

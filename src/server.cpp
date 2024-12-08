@@ -24,12 +24,12 @@ void Server::run()
     cin.ignore();
     getline(cin, input);
 
+    auto [clientIp, clientPort] = this->connection->listen();
+
     size_t dataSize = input.size();
     uint8_t *dataStream = (uint8_t *)malloc(dataSize);
 
     memcpy(dataStream, input.c_str(), dataSize);
-
-    auto [clientIp, clientPort] = this->connection->listen();
     
     this->connection->send(clientIp, clientPort, dataStream, dataSize);
 
