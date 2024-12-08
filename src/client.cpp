@@ -32,7 +32,7 @@ void Client::run()
     this->serverPort = serverPort;
     this->serverIp = this->connection->connect(broadcastAddr, this->serverPort);
 
-    uint8_t buffer[1460];
+    uint8_t buffer[2000];
     memset(buffer, 0, sizeof(buffer));
     int bytesRead = this->connection->recv(buffer, sizeof(buffer));
 
