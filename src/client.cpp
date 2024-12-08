@@ -12,12 +12,6 @@ void Client::run()
     int32_t serverPort;
 
     auto interfaces = Node::getNetworkInterfaces();
-    for (const auto& interface : interfaces)
-    {
-        cout << "Interface: " << interface.name << endl;
-        cout << "  IP: " << interface.ip << endl;
-        cout << "  Broadcast: " << interface.broadcast << endl;
-    }
 
     if (interfaces.size() > 2)
     {

@@ -1,17 +1,18 @@
 #include "socket.hpp"
+#include "utils.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <thread>
-#include <mutex>
-#include <chrono>
 #include <map>
-#include "utils.hpp"
+#include <atomic>
 
 using namespace std;
 
-constexpr std::chrono::milliseconds TIMEOUT_DURATION(10);
+constexpr chrono::milliseconds TIMEOUT_DURATION(10);
+
+void receiveThread(int socket, ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t &serverAddressLen);
+void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr_in &serverAddress, socklen_t serverAddressLen, SegmentHandler *segmentHandler, uint32_t &lfr, uint32_t &laf, uint32_t rws, atomic<size_t> &totalBytesRead, atomic<uint32_t> &numOfSegmentReceived);
 
 TCPSocket::TCPSocket(const string &ip, int32_t port)
 {
@@ -246,11 +247,10 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
                 }
                 else
                 {
-                    cout << sentLen << endl;
                     cout << "[i] [Established] [Seg "<< numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
 
                     // masukkan ke map ketika sudah di send
-                    sendTimes[seqNum] = std::chrono::steady_clock::now();
+                    sendTimes[seqNum] = chrono::steady_clock::now();
                     this->lfs = seqNum;
 
                     numOfSegmentSent++;
@@ -278,70 +278,30 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     sockaddr_in serverAddress;
     socklen_t serverAddressLen = sizeof(serverAddress);
 
-    uint8_t recvBuffer[MAX_SEGMENT_SIZE];
-    memset(recvBuffer, 0, sizeof(recvBuffer));
+    ThreadSafeQueue<vector<uint8_t>> packetQueue;
 
-    uint32_t numOfSegmentReceived = 0;
+    atomic<size_t> totalBytesRead(0);
+    atomic<uint32_t> numOfSegmentReceived(0);
 
-    while (true)
+    thread receiver([this, &packetQueue, &serverAddress, &serverAddressLen]()
     {
-        ssize_t bytesRead = recvfrom(this->socket, recvBuffer, sizeof(recvBuffer), 0,
-                                     (struct sockaddr *)&serverAddress, &serverAddressLen);
-        if (bytesRead < 0)
-        {
-            throw runtime_error("Failed to receive data");
-        }
+        receiveThread(this->socket, packetQueue, serverAddress, serverAddressLen);
+    });
 
-        Segment seg;
-        deserializeToSegment(&seg, recvBuffer, bytesRead);
+    thread processor([this, &packetQueue, &serverAddress, &serverAddressLen, &totalBytesRead, &numOfSegmentReceived]()
+    {
+        uint32_t lfr = this->lfr;
+        uint32_t laf = this->laf;
+        uint32_t rws = this->rws;
+        processThread(packetQueue, this->socket, serverAddress, serverAddressLen, this->segmentHandler, lfr, laf, rws, totalBytesRead, numOfSegmentReceived);
+    });
 
-        // Check if segment is within the acceptable range
-        if (seg.sequenceNumber <= laf)
-        {
-            if (seg.sequenceNumber == lfr + 1)
-            {
-                // Accept the segment and store it
-                this->segmentHandler->appendSegmentBuffer(&seg);
-                lfr = seg.sequenceNumber + bytesRead - BASE_SEGMENT_SIZE;
-            }
-
-            // Send an acknowledgment for the highest in-order sequence received
-            Segment ackSeg = ack(lfr + 1);
-            ssize_t bytesSent = sendto(this->socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
-                                       (struct sockaddr *)&serverAddress, serverAddressLen);
-
-            if (bytesSent < 0)
-            {
-                throw runtime_error("Failed to send acknowledgment");
-            }
-
-            cout << "[i] [Established] [Seg " << ++numOfSegmentReceived
-                 << "] [A=" << ackSeg.acknowledgementNumber << "] ACK Sent" << endl;
-        }
-        else
-        {
-            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment out of range: LAF=" << laf << endl;
-
-            Segment ackSeg = ack(laf);
-            ssize_t bytesSent = sendto(this->socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
-                                       (struct sockaddr *)&serverAddress, serverAddressLen);
-
-            if (bytesSent < 0)
-            {
-                throw runtime_error("Failed to send acknowledgment");
-            }
-
-            cout << "[i] [Established] [Seg " << numOfSegmentReceived
-                 << "] [A=" << ackSeg.acknowledgementNumber << "] ACK Sent" << endl;
-        }
-
-        laf = lfr + rws;
-    }
-
-    uint32_t totalBytesRead = this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+    receiver.join();
+    processor.join();
 
     return totalBytesRead;
 }
+
 
 void TCPSocket::close(const string &ip, int32_t port)
 {
@@ -397,7 +357,7 @@ void TCPSocket::listenACK(const string &ip, int32_t port)
         char remoteIp[INET_ADDRSTRLEN];                   // extract ip
         uint16_t remotePort = ntohs(remoteAddr.sin_port); // extract port
         serverLock.lock();
-        if (ip == std::string(remoteIp) && remotePort == port) // only continue if get ack from the n that we made a handshake with
+        if (ip == string(remoteIp) && remotePort == port) // only continue if get ack from the n that we made a handshake with
         {
             if (ackSeg.flags.ack)
             {
@@ -408,5 +368,81 @@ void TCPSocket::listenACK(const string &ip, int32_t port)
             }
         }
         serverLock.unlock();
+    }
+}
+
+// Client zone
+void receiveThread(int socket, ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t &serverAddressLen)
+{
+    while (true)
+    {
+        uint8_t recvBuffer[MAX_SEGMENT_SIZE];
+        memset(recvBuffer, 0, sizeof(recvBuffer));
+
+        ssize_t bytesRead = recvfrom(socket, recvBuffer, sizeof(recvBuffer), 0,
+                                     (struct sockaddr *)&serverAddress, &serverAddressLen);
+        
+        if (bytesRead < 0)
+        {
+            cerr << "Failed to receive data" << endl;
+            continue;
+        }
+
+        // Store received packet in the queue
+        vector<uint8_t> packet(recvBuffer, recvBuffer + bytesRead);
+        queue.push(packet);
+    }
+}
+
+void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr_in &serverAddress, socklen_t serverAddressLen, SegmentHandler *segmentHandler, uint32_t &lfr, uint32_t &laf, uint32_t rws, atomic<size_t> &totalBytesRead, atomic<uint32_t> &numOfSegmentReceived)
+{
+    while (true)
+    {
+        vector<uint8_t> packet = queue.pop();
+
+        Segment seg;
+        deserializeToSegment(&seg, packet.data(), packet.size());
+
+        if (seg.sequenceNumber <= laf)
+        {
+            if (seg.sequenceNumber == lfr + 1)
+            {
+                segmentHandler->appendSegmentBuffer(&seg);
+                lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE;
+
+                totalBytesRead.fetch_add(packet.size(), memory_order_relaxed);
+                numOfSegmentReceived.fetch_add(1, memory_order_relaxed);
+            }
+
+            Segment ackSeg = ack(lfr + 1);
+            ssize_t bytesSent = sendto(socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
+                                       (struct sockaddr *)&serverAddress, serverAddressLen);
+            if (bytesSent < 0)
+            {
+                cerr << "Failed to send acknowledgment" << endl;
+                continue;
+            }
+
+            cout << "[i] [Established] [Seg " << numOfSegmentReceived
+                 << "] [A=" << ackSeg.acknowledgementNumber << "] ACK Sent" << endl;
+        }
+        else
+        {
+            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment out of range: LAF=" << laf << endl;
+
+            Segment ackSeg = ack(laf);
+            ssize_t bytesSent = sendto(socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
+                                       (struct sockaddr *)&serverAddress, serverAddressLen);
+            if (bytesSent < 0)
+            {
+                cerr << "Failed to send acknowledgment" << endl;
+                continue;
+            }
+
+            cout << "[i] [Established] [Seg " << numOfSegmentReceived
+                 << "] [A=" << ackSeg.acknowledgementNumber << "] ACK Sent" << endl;
+        }
+
+        laf = lfr + rws;
     }
 }
