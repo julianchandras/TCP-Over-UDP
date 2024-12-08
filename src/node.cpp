@@ -6,7 +6,7 @@
 
 using namespace std;
 
-Node::Node(string ip, int32_t port)
+Node::Node(const string &ip, int32_t port)
 {
     this->connection = new TCPSocket(ip, port);
 }

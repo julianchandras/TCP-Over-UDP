@@ -6,7 +6,7 @@
 
 using namespace std;
 
-Server::Server(string ip, int32_t port) : Node(ip, port) {}
+Server::Server(const string &ip, int32_t port) : Node(ip, port) {}
 
 void Server::run()
 {

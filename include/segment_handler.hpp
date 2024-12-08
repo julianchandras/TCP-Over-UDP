@@ -5,8 +5,6 @@
 #include <iostream>
 #include <vector>
 
-using namespace std;
-
 const uint16_t MAX_PAYLOAD_SIZE = 1460;
 const uint16_t MAX_SEGMENT_SIZE = 1480;
 
@@ -17,7 +15,7 @@ private:
     uint32_t currentSeqNum;
     uint32_t currentAckNum;
     void *dataStream;
-    vector<Segment> segmentBuffer;
+    std::vector<Segment> segmentBuffer;
     uint32_t dataSize;
     uint32_t dataIndex;
 
@@ -28,13 +26,13 @@ public:
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
     uint32_t getCurrentSeqNum();
-    vector<Segment *> advanceWindow(uint8_t size);
+    std::vector<Segment *> advanceWindow(uint8_t size);
 
     void appendSegmentBuffer(Segment *Seg);
     uint32_t getDatastream(uint8_t *dataStream, uint32_t bufferSize);
 
     // cuman buat server
-    vector<Segment> ackChecker;
+    std::vector<Segment> ackChecker;
 };
 
 #endif

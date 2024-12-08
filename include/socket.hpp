@@ -13,11 +13,9 @@
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
 
-#define time_stamp chrono::high_resolution_clock::time_point
+#define time_stamp std::chrono::high_resolution_clock::time_point
 
 const uint8_t DEFAULT_WINDOW_SIZE = 7;
-
-using namespace std;
 
 // for references
 // https://maxnilz.com/docs/004-network/003-tcp-connection-state/
@@ -43,7 +41,7 @@ private:
      * The ip address and port for the socket instance
      * Not to be confused with ip address and port of the connected connection
      */
-    string ip;
+    std::string ip;
     int32_t port;
 
     /**
@@ -65,29 +63,29 @@ private:
     uint32_t lfr = 0; // last frame received
     uint32_t laf = 0; // largest acceptable frame
 
-    vector<Segment *> window;
+    std::vector<Segment *> window;
     // cuman buat server
 
-    mutex serverLock;
+    std::mutex serverLock;
     bool terminateACK;
-    void listenACK(string ip, int32_t port);
+    void listenACK(const std::string &ip, int32_t port);
 
 public:
-    TCPSocket(string ip, int32_t port);
+    TCPSocket(const std::string &ip, int32_t port);
     ~TCPSocket();
 
     TCPStatusEnum getStatus();
 
-    pair<string, int32_t> listen();
+    std::pair<std::string, int32_t> listen();
 
     /**
-     * This function sends a connection request to the broadcast address of the network
+     * Sends a connection request to the broadcast address of the network
      */
-    string connect(string broadcastAddr, int32_t port);
+    std::string connect(const std::string &broadcastAddr, int32_t port);
 
-    void send(string ip, int32_t port, void *dataStream, uint32_t dataSize);
+    void send(const std::string &ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
-    void close(string ip, int32_t port);
+    void close(const std::string &ip, int32_t port);
 };
 
 #endif

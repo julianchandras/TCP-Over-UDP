@@ -9,8 +9,8 @@ private:
     void handleMessage(void *buffer);
 
 public:
-    Server(string ip, int32_t port);
-    void run();
+    Server(const std::string &ip, int32_t port);
+    void run() override;
 };
 
 #endif

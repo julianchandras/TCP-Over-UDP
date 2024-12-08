@@ -2,7 +2,9 @@
 #include "utils.hpp"
 #include <iostream>
 
-Client::Client(string ip, int32_t port) : Node(ip, port) {}
+using namespace std;
+
+Client::Client(const string &ip, int32_t port) : Node(ip, port) {}
 
 void Client::run()
 {

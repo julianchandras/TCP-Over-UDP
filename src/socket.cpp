@@ -13,7 +13,7 @@ using namespace std;
 
 constexpr std::chrono::milliseconds TIMEOUT_DURATION(10);
 
-TCPSocket::TCPSocket(string ip, int32_t port)
+TCPSocket::TCPSocket(const string &ip, int32_t port)
 {
     this->ip = ip;
     this->port = port;
@@ -123,7 +123,7 @@ pair<string, int32_t> TCPSocket::listen()
     }
 }
 
-string TCPSocket::connect(string broadcastAddr, int32_t port)
+string TCPSocket::connect(const string &broadcastAddr, int32_t port)
 {
     uint32_t seqNum = rand->getRandomUInt32();
     Segment synSeg = syn(seqNum);
@@ -187,7 +187,7 @@ string TCPSocket::connect(string broadcastAddr, int32_t port)
     }
 }
 
-void TCPSocket::send(string ip, int32_t port, void *dataStream, uint32_t dataSize)
+void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t dataSize)
 {
     if (this->status != ESTABLISHED)
     {
@@ -343,7 +343,7 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     return totalBytesRead;
 }
 
-void TCPSocket::close(string ip, int32_t port)
+void TCPSocket::close(const string &ip, int32_t port)
 {
     Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
     uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
@@ -383,7 +383,7 @@ void TCPSocket::close(string ip, int32_t port)
 }
 
 ////server zone
-void TCPSocket::listenACK(string ip, int32_t port)
+void TCPSocket::listenACK(const string &ip, int32_t port)
 {
     while (!this->terminateACK)
     {

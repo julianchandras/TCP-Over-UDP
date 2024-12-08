@@ -8,13 +8,11 @@
 class Server;
 class Client;
 
-using namespace std;
-
 struct NetworkInterface
 {
-    string name;
-    string ip;
-    string broadcast;
+    std::string name;
+    std::string ip;
+    std::string broadcast;
 };
 
 /**
@@ -25,16 +23,16 @@ struct NetworkInterface
 class Node
 {
 private:
-    static string resolveHostname(const string& hostname);
+    static std::string resolveHostname(const std::string &hostname);
 
 protected:
     TCPSocket *connection;
 
-    static vector<NetworkInterface> getNetworkInterfaces();
+    static std::vector<NetworkInterface> getNetworkInterfaces();
 
 public:
-    Node(string ip, int32_t port);
-    ~Node();
+    Node(const std::string &ip, int32_t port);
+    virtual ~Node();
 
     virtual void run() = 0;
 };
