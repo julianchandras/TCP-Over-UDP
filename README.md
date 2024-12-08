@@ -1,5 +1,19 @@
-# TCP over UDP
+# M1 Tugas Besar IF2230
 
-## Notes
-1. Might be confusing. The following convention is used: the sender is the server and the receiver is the client.
-2. Currently the server is hardcoded to send to 127.0.0.1:5679
+Kelompok PT-TarunaCitraPratama
+- Venantius Sean Ardi Nugroho/13522078
+- Julian Chandra Sutadi/13522080
+- Dimas Bagoes Hendrianto/13522112
+- M. Rifki Virziadeili Harisman/13522120
+
+##  How to Run
+
+- make sure to use a linux terminal or wsl
+- cd to the directory
+- make clean
+- make
+- ./bin/node [HOST] [PORT] 
+## Afterword
+
+Me when 6 tubes secara concurrent:
+![buwomp](./buwomp.gif)
