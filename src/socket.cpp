@@ -5,14 +5,10 @@
 #include <netinet/in.h>
 #include <thread>
 #include <map>
-#include <atomic>
 
 using namespace std;
 
 constexpr chrono::milliseconds TIMEOUT_DURATION(10);
-
-void receiveThread(int socket, ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t &serverAddressLen);
-void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr_in &serverAddress, socklen_t serverAddressLen, SegmentHandler *segmentHandler, uint32_t &lfr, uint32_t &laf, uint32_t rws, atomic<size_t> &totalBytesRead, atomic<uint32_t> &numOfSegmentReceived);
 
 TCPSocket::TCPSocket(const string &ip, int32_t port)
 {
@@ -25,6 +21,14 @@ TCPSocket::TCPSocket(const string &ip, int32_t port)
         throw new runtime_error("Failed to create socket");
     }
 
+    timeval timeout;
+    timeout.tv_sec = 5; // 5 seconds timeout
+    timeout.tv_usec = 0;
+    if (setsockopt(this->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        throw runtime_error("Failed to set receive timeout");
+    }
+
     sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(this->port);
@@ -32,14 +36,14 @@ TCPSocket::TCPSocket(const string &ip, int32_t port)
     /*
     I think we should actually bind to a specif port and not INADDR_ANY, but somehow it can't receive message from the broadcast
     However, using the debugger, when bound to the INADDR_ANY, address.sin_addr.s_addr has the same value with when it is bound to the input ip
-    
+
     if (inet_pton(AF_INET, this->ip.c_str(), &address.sin_addr) <= 0)
     {
         perror("Invalid IP address");
     }
     */
 
-   address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = INADDR_ANY;
 
     bind(this->socket, (struct sockaddr *)&address, sizeof(address));
 
@@ -183,7 +187,7 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
         // set sliding window attributes
         this->lfr = synAckSeg.sequenceNumber;
         this->laf = this->lfr + this->rws;
-         
+
         return remoteIp;
     }
 }
@@ -214,8 +218,9 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
 
     uint8_t initWindowSize = this->segmentHandler->getWindowSize();
     uint8_t windowSize = initWindowSize;
-    
-    thread receiveACK([this, ip, port]() { this->listenACK(ip, port); });
+
+    thread receiveACK([this, ip, port]()
+                      { this->listenACK(ip, port); });
     map<int, chrono::time_point<chrono::steady_clock>> sendTimes;
 
     // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
@@ -226,6 +231,8 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
     uint32_t numOfSegmentSent = 1;
     this->terminateACK = false;
     bool cont = true;
+
+    uint32_t remainingDataSize = dataSize;
     while (cont)
     {
         // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
@@ -236,24 +243,32 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
         {
             Segment *tempSeg = *myItr;
             uint32_t seqNum = tempSeg->sequenceNumber;
+
+            uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
+
             // kalau belum ada di map atau melebihi timeout
             if (sendTimes.find(seqNum) == sendTimes.end() || chrono::steady_clock::now() - sendTimes[seqNum] > TIMEOUT_DURATION)
             {
-                uint8_t *buffer = serializeSegment(*myItr, 0, MAX_PAYLOAD_SIZE);
-                ssize_t sentLen = sendto(this->socket, buffer, MAX_SEGMENT_SIZE, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
+                uint8_t *buffer = serializeSegment(*myItr, 0, payloadSize);
+                ssize_t sentLen = sendto(this->socket, buffer, payloadSize + BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
+
                 if (sentLen < 0)
                 {
                     perror("Error sending segment");
                 }
                 else
                 {
-                    cout << "[i] [Established] [Seg "<< numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
+                    cout << "[i] [Established] [Seg " << numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
 
                     // masukkan ke map ketika sudah di send
                     sendTimes[seqNum] = chrono::steady_clock::now();
                     this->lfs = seqNum;
 
                     numOfSegmentSent++;
+
+                    remainingDataSize -= payloadSize;
+
+                    delete[] buffer;
                 }
             }
         }
@@ -280,31 +295,28 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
     ThreadSafeQueue<vector<uint8_t>> packetQueue;
 
-    atomic<size_t> totalBytesRead(0);
     atomic<uint32_t> numOfSegmentReceived(0);
 
-    thread receiver([this, &packetQueue, &serverAddress, &serverAddressLen]()
-    {
-        receiveThread(this->socket, packetQueue, serverAddress, serverAddressLen);
+    thread receiver([this, &packetQueue, &serverAddress, &serverAddressLen]() {
+        this->receiveThread(packetQueue, serverAddress, serverAddressLen);
     });
 
-    thread processor([this, &packetQueue, &serverAddress, &serverAddressLen, &totalBytesRead, &numOfSegmentReceived]()
-    {
-        uint32_t lfr = this->lfr;
-        uint32_t laf = this->laf;
-        uint32_t rws = this->rws;
-        processThread(packetQueue, this->socket, serverAddress, serverAddressLen, this->segmentHandler, lfr, laf, rws, totalBytesRead, numOfSegmentReceived);
+    thread processor([this, &packetQueue, &serverAddress, &serverAddressLen, &numOfSegmentReceived]() {
+        this->processThread(packetQueue, serverAddress, serverAddressLen, numOfSegmentReceived);
     });
+
+    this->isReceiving = true;
 
     receiver.join();
     processor.join();
 
+    uint32_t totalBytesRead = this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+
     return totalBytesRead;
 }
 
-
 void TCPSocket::close(const string &ip, int32_t port)
-{
+{   
     Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
     uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
 
@@ -319,26 +331,78 @@ void TCPSocket::close(const string &ip, int32_t port)
 
     cout << "[i] [Closing] Sending FIN request to " << ip << ":" << port << endl;
 
-    sendto(this->socket, finSegBuf, BASE_SEGMENT_SIZE, 0,
-            (struct sockaddr *)&clientAddress, clientAddressLen);
+    // Send FIN request
+    ssize_t bytesSent = sendto(this->socket, finSegBuf, BASE_SEGMENT_SIZE, 0,
+                               (struct sockaddr *)&clientAddress, clientAddressLen);
+    if (bytesSent < 0)
+    {
+        throw runtime_error("Failed to send FIN request");
+    }
 
     uint8_t recvBuf[BASE_SEGMENT_SIZE];
-    memset(recvBuf, 0, BASE_SEGMENT_SIZE);
+    ssize_t recvBufLen;
 
-    ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
-                                    (struct sockaddr *)&clientAddress, &clientAddressLen);
+    int retryCount = 0;
+    const int timeout = 2000;
 
-    cout << "[+] [Closing] Received FIN-ACK request from " << ip << ":" << port << endl;
-
-    Segment finAckSeg;
-    deserializeToSegment(&finAckSeg, recvBuf, BASE_SEGMENT_SIZE);
-
-    if (flagsToByte(finAckSeg) && finAckSeg.acknowledgementNumber == finSeg.sequenceNumber + 1)
+    // Loop to wait for FIN-ACK with retries and timeout
+    while (retryCount < MAX_RETRIES)
     {
-        Segment ackSeg = ack(finAckSeg.sequenceNumber + 1);
-        uint8_t * ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+        recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                              (struct sockaddr *)&clientAddress, &clientAddressLen);
 
-        cout << "[i] [Closing] Sending ACK request to " << ip << ":" << port << endl;
+        if (recvBufLen < 0)
+        {
+            cerr << "[!] [Closing] Failed to receive data" << endl;
+            return;
+        }
+
+        Segment finAckSeg;
+        deserializeToSegment(&finAckSeg, recvBuf, BASE_SEGMENT_SIZE);
+
+        // Check if the packet is a valid FIN-ACK and the sequence number matches
+        if (flagsToByte(finAckSeg) && finAckSeg.acknowledgementNumber == finSeg.sequenceNumber + 1)
+        {
+            this->status = LAST_ACK;
+
+            cout << "[+] [Closing] Received FIN-ACK request from " << ip << ":" << port << endl;
+
+            // Send ACK response to finalize the closure
+            Segment ackSeg = ack(finAckSeg.sequenceNumber + 1);
+            uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+
+            cout << "[i] [Closing] Sending ACK request to " << ip << ":" << port << endl;
+            ssize_t ackSent = sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0,
+                                     (struct sockaddr *)&clientAddress, clientAddressLen);
+            if (ackSent < 0)
+            {
+                cerr << "[!] [Closing] Failed to send ACK" << endl;
+                return;
+            }
+
+            this->status = TCPStatusEnum::LISTEN;
+
+            cout << "[i] [Closed] Connection closed successfully with " << ip << ":" << port << endl;
+            return;
+        }
+        else
+        {
+            cerr << "[!] Invalid packet or out of order" << endl;
+
+            // Retry logic
+            if (++retryCount < MAX_RETRIES)
+            {
+                cout << "[i] [Closing] Retrying (" << retryCount << "/" << MAX_RETRIES << ")" << endl;
+                this_thread::sleep_for(chrono::milliseconds(timeout));
+                sendto(this->socket, finSegBuf, BASE_SEGMENT_SIZE, 0,
+                       (struct sockaddr *)&clientAddress, clientAddressLen);
+            }
+            else
+            {
+                cerr << "[!] [Closing] Max retries reached, connection closure failed." << endl;
+                return;
+            }
+        }
     }
 }
 
@@ -372,16 +436,16 @@ void TCPSocket::listenACK(const string &ip, int32_t port)
 }
 
 // Client zone
-void receiveThread(int socket, ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t &serverAddressLen)
+void TCPSocket::receiveThread(ThreadSafeQueue<std::vector<uint8_t>>& queue, sockaddr_in& serverAddress, socklen_t& serverAddressLen)
 {
-    while (true)
+    while (this->isReceiving)
     {
         uint8_t recvBuffer[MAX_SEGMENT_SIZE];
         memset(recvBuffer, 0, sizeof(recvBuffer));
 
-        ssize_t bytesRead = recvfrom(socket, recvBuffer, sizeof(recvBuffer), 0,
+        ssize_t bytesRead = recvfrom(this->socket, recvBuffer, sizeof(recvBuffer), 0,
                                      (struct sockaddr *)&serverAddress, &serverAddressLen);
-        
+
         if (bytesRead < 0)
         {
             cerr << "Failed to receive data" << endl;
@@ -394,7 +458,7 @@ void receiveThread(int socket, ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr
     }
 }
 
-void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr_in &serverAddress, socklen_t serverAddressLen, SegmentHandler *segmentHandler, uint32_t &lfr, uint32_t &laf, uint32_t rws, atomic<size_t> &totalBytesRead, atomic<uint32_t> &numOfSegmentReceived)
+void TCPSocket::processThread(ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t serverAddressLen, atomic<uint32_t> &numOfSegmentReceived)
 {
     while (true)
     {
@@ -403,18 +467,32 @@ void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr
         Segment seg;
         deserializeToSegment(&seg, packet.data(), packet.size());
 
-        if (seg.sequenceNumber <= laf)
+        if (seg.sequenceNumber <= this->laf)
         {
-            if (seg.sequenceNumber == lfr + 1)
+            if (seg.sequenceNumber == this->lfr + 1)
             {
-                segmentHandler->appendSegmentBuffer(&seg);
-                lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE - 1;
+                if (flagsToByte(seg) == FIN_FLAG)
+                {
+                    char ip[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &(serverAddress.sin_addr), ip, INET_ADDRSTRLEN);
 
-                totalBytesRead.fetch_add(packet.size(), memory_order_relaxed);
+                    uint16_t port = ntohs(serverAddress.sin_port);
+
+                    cout << "[i] [Closing] Received FIN request from " << ip << ":" << port << endl;
+                    handleFinHandshake(serverAddress, serverAddressLen, this->segmentHandler->getCurrentSeqNum(), seg.sequenceNumber + 1);
+
+                    this->isReceiving = false;
+
+                    break;
+                }
+
+                this->segmentHandler->appendSegmentBuffer(&seg);
+                this->lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE - 1;
+
                 numOfSegmentReceived.fetch_add(1, memory_order_relaxed);
             }
 
-            Segment ackSeg = ack(lfr + 1);
+            Segment ackSeg = ack(this->lfr + 1);
             ssize_t bytesSent = sendto(socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
                                        (struct sockaddr *)&serverAddress, serverAddressLen);
             if (bytesSent < 0)
@@ -428,9 +506,9 @@ void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr
         }
         else
         {
-            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment out of range: LAF=" << laf << endl;
+            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment out of range: LAF=" << this->laf << endl;
 
-            Segment ackSeg = ack(laf);
+            Segment ackSeg = ack(this->laf);
             ssize_t bytesSent = sendto(socket, serializeSegment(&ackSeg, 0, 0), BASE_SEGMENT_SIZE, 0,
                                        (struct sockaddr *)&serverAddress, serverAddressLen);
             if (bytesSent < 0)
@@ -443,6 +521,65 @@ void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr
                  << "] [A=" << ackSeg.acknowledgementNumber << "] ACK Sent" << endl;
         }
 
-        laf = lfr + rws;
+        this->laf = this->lfr + this->rws;
     }
+}
+
+void TCPSocket::handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverAddressLen, uint32_t sequenceNumber, uint32_t ackNumber)
+{
+    const int MAX_RETRIES = 5;
+    const chrono::milliseconds TIMEOUT(500);
+
+    int retries = 0;
+
+    // Send FIN-ACK to acknowledge the last FIN
+    Segment finAckSeg = finAck(sequenceNumber, ackNumber);
+    uint8_t *finAckSegBuf = serializeSegment(&finAckSeg, 0, 0);
+
+    cout << "[i] [Closing] Sending FIN-ACK..." << endl;
+
+    while (retries < MAX_RETRIES)
+    {
+        ssize_t bytesSent = sendto(this->socket, finAckSegBuf, BASE_SEGMENT_SIZE, 0,
+                                   (struct sockaddr *)&serverAddress, serverAddressLen);
+
+        if (bytesSent < 0)
+        {
+            cerr << "[!] Failed to send FIN-ACK" << endl;
+            ++retries;
+            this_thread::sleep_for(TIMEOUT);
+            continue;
+        }
+
+        // Wait for final ACK
+        uint8_t recvBuf[BASE_SEGMENT_SIZE];
+        memset(recvBuf, 0, BASE_SEGMENT_SIZE);
+
+        cout << "[i] [Closing] Waiting for final ACK..." << endl;
+
+        ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                      (struct sockaddr *)&serverAddress, &serverAddressLen);
+
+        if (recvBufLen > 0)
+        {
+            Segment ackSeg;
+            deserializeToSegment(&ackSeg, recvBuf, BASE_SEGMENT_SIZE);
+
+            // Check if the received packet is a valid ACK
+            if (flagsToByte(ackSeg) == ACK_FLAG && ackSeg.acknowledgementNumber == sequenceNumber + 1)
+            {
+                cout << "[i] [Closing] Final ACK received. Closing connection." << endl;
+                this->isReceiving = false;
+
+                return;
+            }
+        }
+
+        // Retry on timeout or invalid packet
+        cerr << "[!] Timeout or invalid ACK. Retrying FIN-ACK..." << endl;
+        ++retries;
+        this_thread::sleep_for(TIMEOUT);
+    }
+
+    cerr << "[!] Max retries reached. Connection closing might be incomplete." << endl;
 }

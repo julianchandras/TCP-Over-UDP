@@ -34,7 +34,3 @@ void Client::run()
 
     cout << "[i] Message received: " << buffer << endl;
 }
-
-void Client::handleMessage(void *buffer)
-{
-}
