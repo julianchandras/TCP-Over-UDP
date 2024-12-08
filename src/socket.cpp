@@ -408,7 +408,7 @@ void processThread(ThreadSafeQueue<vector<uint8_t>> &queue, int socket, sockaddr
             if (seg.sequenceNumber == lfr + 1)
             {
                 segmentHandler->appendSegmentBuffer(&seg);
-                lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE;
+                lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE - 1;
 
                 totalBytesRead.fetch_add(packet.size(), memory_order_relaxed);
                 numOfSegmentReceived.fetch_add(1, memory_order_relaxed);
