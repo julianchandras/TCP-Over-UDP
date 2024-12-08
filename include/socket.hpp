@@ -5,13 +5,13 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include <thread>
 #include <mutex>
 #include <chrono>
-#include <map>
+#include <arpa/inet.h>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
+#include "thread_safe_queue.hpp"
 
 #define time_stamp std::chrono::high_resolution_clock::time_point
 
@@ -64,8 +64,8 @@ private:
     uint32_t laf = 0; // largest acceptable frame
 
     std::vector<Segment *> window;
+    
     // cuman buat server
-
     std::mutex serverLock;
     bool terminateACK;
     void listenACK(const std::string &ip, int32_t port);
