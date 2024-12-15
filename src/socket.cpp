@@ -96,36 +96,65 @@ pair<string, int32_t> TCPSocket::listen()
         cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
              << "] Sending SYN-ACK request to " << remoteIp << ":" << remotePort << endl;
 
-        sendto(this->socket, synAckSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&remoteAddr, remoteAddrLen);
+        int retryCount = 0;
+        const int timeout = 3;
 
-        struct sockaddr_in tempRemoteAddr;
-        socklen_t tempRemoteAddrLen = sizeof(tempRemoteAddr);
-
-        recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
-                              (struct sockaddr *)&tempRemoteAddr, &tempRemoteAddrLen);
-
-        char tempRemoteIp[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &(tempRemoteAddr.sin_addr), tempRemoteIp, INET_ADDRSTRLEN);
-
-        uint16_t tempRemotePort = ntohs(tempRemoteAddr.sin_port);
-
-        if (strcmp(remoteIp, tempRemoteIp) == 0 && remotePort == tempRemotePort)
+        while (retryCount < MAX_RETRIES)
         {
-            Segment ackSeg;
-            deserializeToSegment(&ackSeg, recvBuf, recvBufLen);
+            sendto(this->socket, synAckSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&remoteAddr, remoteAddrLen);
 
-            if (flagsToByte(ackSeg) == ACK_FLAG)
+            struct sockaddr_in tempRemoteAddr;
+            socklen_t tempRemoteAddrLen = sizeof(tempRemoteAddr);
+
+            fd_set readfds;
+            FD_ZERO(&readfds);
+            FD_SET(this->socket, &readfds);
+
+            struct timeval tv;
+            tv.tv_sec = timeout;
+            tv.tv_usec = 0;
+
+            // Wait for incoming data with timeout
+            int selectResult = select(this->socket + 1, &readfds, NULL, NULL, &tv);
+
+            if (selectResult > 0)
             {
-                cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Received ACK request from " << remoteIp << ":" << remotePort << endl;
+                recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                      (struct sockaddr *)&tempRemoteAddr, &tempRemoteAddrLen);
 
-                this->status = ESTABLISHED;
+                char tempRemoteIp[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(tempRemoteAddr.sin_addr), tempRemoteIp, INET_ADDRSTRLEN);
 
-                segmentHandler = new SegmentHandler(DEFAULT_WINDOW_SIZE, ackSeg.acknowledgementNumber, synAckSeg.acknowledgementNumber);
+                uint16_t tempRemotePort = ntohs(tempRemoteAddr.sin_port);
+                
+                if (strcmp(remoteIp, tempRemoteIp) == 0 && remotePort == tempRemotePort)
+                {
+                    Segment ackSeg;
+                    deserializeToSegment(&ackSeg, recvBuf, recvBufLen);
 
-                return {remoteIp, remotePort};
+                    if (flagsToByte(ackSeg) == ACK_FLAG)
+                    {
+                        cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Received ACK request from " << remoteIp << ":" << remotePort << endl;
+
+                        this->status = ESTABLISHED;
+
+                        segmentHandler = new SegmentHandler(DEFAULT_WINDOW_SIZE, ackSeg.acknowledgementNumber, synAckSeg.acknowledgementNumber);
+
+                        return {remoteIp, remotePort};
+                    }
+                }
+            }
+            else
+            {
+                retryCount++;
+                cout << "[!] [Handshake] No ACK received. Retrying... (" << retryCount << "/" << MAX_RETRIES << ")\n";
             }
         }
+        cout << "[!] [Handshake] Failed after " << MAX_RETRIES << " retries." << endl;
+        this->status = LISTEN;
     }
+    
+    return {};
 }
 
 string TCPSocket::connect(const string &broadcastAddr, int32_t port)
@@ -142,6 +171,7 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
     if (inet_pton(AF_INET, broadcastAddr.c_str(), &destAddr.sin_addr) <= 0)
     {
         perror("Invalid IP address");
+        return "";
     }
 
     // enable broadcasting
@@ -150,46 +180,72 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
 
     cout << "[+] [Handshake] [S=" << seqNum << "] Sending SYN request to " << broadcastAddr << ":" << port << endl;
 
-    sendto(this->socket, synSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
-
-    // SYN SENT STATE
-    this->status = SYN_SENT;
-
-    struct sockaddr_in remoteAddr;
-    socklen_t remoteAddrLen = sizeof(remoteAddr);
-
-    uint8_t recvBuf[BASE_SEGMENT_SIZE];
-    ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
-                                  (struct sockaddr *)&remoteAddr, &remoteAddrLen);
-
-    Segment synAckSeg;
-    deserializeToSegment(&synAckSeg, recvBuf, recvBufLen);
-
-    if (flagsToByte(synAckSeg) == SYN_ACK_FLAG && synAckSeg.acknowledgementNumber == ++seqNum)
+    int retryCount = 0;
+    while (retryCount < MAX_RETRIES)
     {
-        char remoteIp[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &(remoteAddr.sin_addr), remoteIp, INET_ADDRSTRLEN);
+        ssize_t bytesSent = sendto(this->socket, synSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+        if (bytesSent < 0)
+        {
+            cerr << "[!] [Handshake] Failed to send SYN request. Retrying..." << endl;
+            retryCount++;
+            continue;   
+        }
+    
+        // SYN SENT STATE
+        this->status = SYN_SENT;
 
-        cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
-             << "] Received SYN-ACK request from " << remoteIp << ":" << port << endl;
+        struct sockaddr_in remoteAddr;
+        socklen_t remoteAddrLen = sizeof(remoteAddr);
+        uint8_t recvBuf[BASE_SEGMENT_SIZE];
 
-        Segment ackSeg = ack(synAckSeg.sequenceNumber + 1);
-        uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+        ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                    (struct sockaddr *)&remoteAddr, &remoteAddrLen);
+        if (recvBufLen < 0)
+        {
+            cerr << "[!] [Handshake] Failed to receive data. Retrying..." << endl;
+            retryCount++;
+            continue;
+        }
+        Segment synAckSeg;
+        deserializeToSegment(&synAckSeg, recvBuf, recvBufLen);
+        if (flagsToByte(synAckSeg) == SYN_ACK_FLAG && synAckSeg.acknowledgementNumber == ++seqNum)
+        {
+            char remoteIp[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(remoteAddr.sin_addr), remoteIp, INET_ADDRSTRLEN);
 
-        cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << remoteIp << ":" << port << endl;
+            cout << "[+] [Handshake] [S=" << synAckSeg.sequenceNumber << "] [A=" << synAckSeg.acknowledgementNumber
+                << "] Received SYN-ACK request from " << remoteIp << ":" << port << endl;
 
-        sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+            Segment ackSeg = ack(synAckSeg.sequenceNumber + 1);
+            uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
 
-        segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
+            cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << remoteIp << ":" << port << endl;
+            ssize_t ackBytesSent = sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
+            
+            if (ackBytesSent < 0)
+            {
+                cerr << "[!] [Handshake] Failed to send ACK request. Retrying..." << endl;
+                retryCount++;
+                continue;
+            }
+            segmentHandler = new SegmentHandler(5, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
 
-        this->status = ESTABLISHED;
+            this->status = ESTABLISHED;
 
-        // set sliding window attributes
-        this->lfr = synAckSeg.sequenceNumber;
-        this->laf = this->lfr + this->rws;
+            // set sliding window attributes
+            this->lfr = synAckSeg.sequenceNumber;
+            this->laf = this->lfr + this->rws;
 
-        return remoteIp;
+            return remoteIp;
+        }
+        else
+        {
+            cerr << "[!] [Handshake] SYN-ACK mismatch or invalid acknowledgement number. Retrying..." << endl;
+            retryCount++;
+        }
     }
+    cerr << "[!] [Handshake] Max retries reached. Could not establish connection." << endl;
+    return "";
 }
 
 void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t dataSize)
