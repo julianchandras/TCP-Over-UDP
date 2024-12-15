@@ -22,7 +22,7 @@ TCPSocket::TCPSocket(const string &ip, int32_t port)
     }
 
     timeval timeout;
-    timeout.tv_sec = 5; // 5 seconds timeout
+    timeout.tv_sec = 10; // 10 seconds timeout
     timeout.tv_usec = 0;
     if (setsockopt(this->socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
     {
@@ -297,6 +297,8 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
     atomic<uint32_t> numOfSegmentReceived(0);
 
+    this->isReceiving = true;
+
     thread receiver([this, &packetQueue, &serverAddress, &serverAddressLen]() {
         this->receiveThread(packetQueue, serverAddress, serverAddressLen);
     });
@@ -304,8 +306,6 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     thread processor([this, &packetQueue, &serverAddress, &serverAddressLen, &numOfSegmentReceived]() {
         this->processThread(packetQueue, serverAddress, serverAddressLen, numOfSegmentReceived);
     });
-
-    this->isReceiving = true;
 
     receiver.join();
     processor.join();
