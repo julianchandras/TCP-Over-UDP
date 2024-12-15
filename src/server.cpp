@@ -33,10 +33,23 @@ void Server::run()
         string input;
         getline(cin, input);
 
-        // Allocate and copy input into the data stream
-        dataSize = input.size();
+        uint32_t nameLength = 0;
+        uint32_t extLength = 0;
+        size_t fixedPayloadSize = sizeof(nameLength) + sizeof(extLength);
+
+        dataSize = fixedPayloadSize + input.size();
         dataStream = (uint8_t *)malloc(dataSize);
-        memcpy(dataStream, input.c_str(), dataSize);
+
+        size_t offset = 0;
+
+        memcpy(dataStream + offset, &nameLength, sizeof(nameLength));
+        offset += sizeof(nameLength);
+
+        memcpy(dataStream + offset, &extLength, sizeof(extLength));
+        offset += sizeof(extLength);
+
+        // Copy input content
+        memcpy(dataStream + offset, input.c_str(), input.size());
     }
     else if (choice == 2)
     {
@@ -62,16 +75,12 @@ void Server::run()
         vector<uint8_t> fileContent((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
         file.close();
 
-        // Calculate sizes
         uint32_t nameLength = nameWithoutExtension.size();
         uint32_t extLength = fileExtension.size();
         size_t fixedPayloadSize = sizeof(nameLength) + sizeof(extLength);
         dataSize = fixedPayloadSize + nameLength + extLength + fileContent.size();
 
-        // Allocate the buffer
         dataStream = (uint8_t *)malloc(dataSize);
-
-        // Fill the buffer
         size_t offset = 0;
 
         // Copy name length
