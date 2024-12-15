@@ -485,7 +485,7 @@ void TCPSocket::close(const string &ip, int32_t port)
 
             cout << "[i] [Closing] TIME_WAIT period expired, connection is fully closed." << endl;
 
-            this->status = LISTEN;
+            this->status = CLOSED;
             cout << "[i] [Closed] Connection closed successfully with " << ip << ":" << port << endl;
             return;
         }
