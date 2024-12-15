@@ -8,6 +8,7 @@
 #include <mutex>
 #include <chrono>
 #include <arpa/inet.h>
+#include <atomic>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
@@ -16,6 +17,7 @@
 #define time_stamp std::chrono::high_resolution_clock::time_point
 
 const uint8_t DEFAULT_WINDOW_SIZE = 7;
+const uint16_t MAX_RETRIES = 5;
 
 // for references
 // https://maxnilz.com/docs/004-network/003-tcp-connection-state/
@@ -30,7 +32,9 @@ enum TCPStatusEnum
     FIN_WAIT_2 = 5,
     CLOSE_WAIT = 6,
     CLOSING = 7,
-    LAST_ACK = 8
+    LAST_ACK = 8,
+    TIMED_WAIT = 9,
+    CLOSED = 10,
 };
 
 class TCPSocket
@@ -65,16 +69,25 @@ private:
 
     std::vector<Segment *> window;
     
-    // cuman buat server
+    // buat send()
     std::mutex serverLock;
     bool terminateACK;
     void listenACK(const std::string &ip, int32_t port);
 
+    // buat recv()
+    bool isReceiving;
+    uint32_t totalBytesRead;
+    ThreadSafeQueue<std::vector<uint8_t>> packetQueue;
+
+    void receiveThread(sockaddr_in& serverAddress, socklen_t& serverAddressLen);
+    void processThread(sockaddr_in& serverAddress, socklen_t serverAddressLen, 
+                       std::atomic<uint32_t>& numOfSegmentReceived);
+    void handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverAddressLen, uint32_t sequenceNumber, uint32_t ackNumber);
+
+
 public:
     TCPSocket(const std::string &ip, int32_t port);
     ~TCPSocket();
-
-    TCPStatusEnum getStatus();
 
     std::pair<std::string, int32_t> listen();
 

@@ -45,10 +45,10 @@ Segment fin(uint32_t seqNum)
     return finSeg;
 }
 
-Segment finAck(uint32_t seqNumm, uint32_t ackNum)
+Segment finAck(uint32_t seqNum, uint32_t ackNum)
 {
     Segment faSeg = initializeSegment();
-    faSeg.sequenceNumber = seqNumm;
+    faSeg.sequenceNumber = seqNum;
     faSeg.acknowledgementNumber = ackNum;
     faSeg.flags.fin = 1;
     faSeg.flags.ack = 1;

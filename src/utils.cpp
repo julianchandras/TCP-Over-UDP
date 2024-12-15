@@ -1,5 +1,7 @@
 #include "utils.hpp"
 
+#include <iostream>
+
 using namespace std;
 
 uint8_t *serializeSegment(Segment *toBeSent, size_t optionsLen, size_t payloadLen)

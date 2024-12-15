@@ -51,16 +51,47 @@ void Server::run()
             return;
         }
 
+        // Extract the file name and extension
         size_t pos = filePath.find_last_of("/\\");
         string fileName = (pos == string::npos) ? filePath : filePath.substr(pos + 1);
+        size_t extPos = fileName.find_last_of(".");
+        string fileExtension = (extPos == string::npos) ? "" : fileName.substr(extPos + 1);
+        string nameWithoutExtension = (extPos == string::npos) ? fileName : fileName.substr(0, extPos);
+
+        // Read the file content
         vector<uint8_t> fileContent((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
         file.close();
-        uint32_t fileNameLength = fileName.size();
-        dataSize = sizeof(fileNameLength) + fileNameLength + fileContent.size();
+
+        // Calculate sizes
+        uint32_t nameLength = nameWithoutExtension.size();
+        uint32_t extLength = fileExtension.size();
+        size_t fixedPayloadSize = sizeof(nameLength) + sizeof(extLength);
+        dataSize = fixedPayloadSize + nameLength + extLength + fileContent.size();
+
+        // Allocate the buffer
         dataStream = (uint8_t *)malloc(dataSize);
-        memcpy(dataStream, &fileNameLength, sizeof(fileNameLength));
-        memcpy(dataStream + sizeof(fileNameLength), fileName.c_str(), fileNameLength);
-        memcpy(dataStream + sizeof(fileNameLength) + fileNameLength, fileContent.data(), fileContent.size());
+
+        // Fill the buffer
+        size_t offset = 0;
+
+        // Copy name length
+        memcpy(dataStream + offset, &nameLength, sizeof(nameLength));
+        offset += sizeof(nameLength);
+
+        // Copy extension length
+        memcpy(dataStream + offset, &extLength, sizeof(extLength));
+        offset += sizeof(extLength);
+
+        // Copy name
+        memcpy(dataStream + offset, nameWithoutExtension.c_str(), nameLength);
+        offset += nameLength;
+
+        // Copy extension
+        memcpy(dataStream + offset, fileExtension.c_str(), extLength);
+        offset += extLength;
+
+        // Copy file content
+        memcpy(dataStream + offset, fileContent.data(), fileContent.size());
     }
     else
     {
@@ -71,10 +102,6 @@ void Server::run()
     // Send the data stream to the client
     auto [clientIp, clientPort] = this->connection->listen();
     this->connection->send(clientIp, clientPort, dataStream, dataSize);
-
-    // Free the allocated memory
+    this->connection->close(clientIp, clientPort);
     free(dataStream);
-}
-void Server::handleMessage(void *buffer)
-{
 }

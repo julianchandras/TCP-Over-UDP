@@ -90,12 +90,14 @@ void SegmentHandler::appendSegmentBuffer(Segment *seg)
     this->segmentBuffer.push_back(*seg);
 }
 
-uint32_t SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t bufferSize)
+void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t bufferSize)
 {
     if (this->segmentBuffer.empty())
     {
         throw runtime_error("No segments to reconstruct the data stream!");
     }
+
+    memset(dataStream, 0, bufferSize);
 
     uint32_t totalBytesRead = 0;
 
@@ -126,5 +128,5 @@ uint32_t SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t bufferSize)
         }
     }
 
-    return totalBytesRead;
+    return;
 }

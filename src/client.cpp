@@ -28,13 +28,17 @@ void Client::run()
     this->serverPort = serverPort;
     this->serverIp = this->connection->connect(broadcastAddr, this->serverPort);
 
-    uint8_t buffer[2000];
-    memset(buffer, 0, sizeof(buffer));
-    int bytesRead = this->connection->recv(buffer, sizeof(buffer));
+    uint8_t *buffer = (uint8_t *)malloc(2000 * sizeof(uint8_t));
+    if (buffer == nullptr)
+    {
+        cerr << "[!] Memory allocation failed!" << endl;
+        return;
+    }
+    int bytesRead = this->connection->recv(buffer, 2000);
 
-    cout << "[i] Message received: " << buffer << endl;
-}
+    string message(reinterpret_cast<char *>(buffer), bytesRead);
+    cout << "[i] Message received: " << message << endl;
+    cout << "[i] Message length: " << bytesRead << endl;
 
-void Client::handleMessage(void *buffer)
-{
+    free(buffer);
 }
