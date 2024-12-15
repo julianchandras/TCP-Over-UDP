@@ -55,11 +55,6 @@ TCPSocket::~TCPSocket()
     delete segmentHandler;
 }
 
-TCPStatusEnum TCPSocket::getStatus()
-{
-    return this->status;
-}
-
 pair<string, int32_t> TCPSocket::listen()
 {
     this->status = LISTEN;
@@ -355,20 +350,20 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
     this->isReceiving = true;
 
-    thread receiver([this, &packetQueue, &serverAddress, &serverAddressLen]() {
-        this->receiveThread(packetQueue, serverAddress, serverAddressLen);
+    thread receiver([this, &serverAddress, &serverAddressLen]() {
+        this->receiveThread(serverAddress, serverAddressLen);
     });
 
-    thread processor([this, &packetQueue, &serverAddress, &serverAddressLen, &numOfSegmentReceived]() {
-        this->processThread(packetQueue, serverAddress, serverAddressLen, numOfSegmentReceived);
+    thread processor([this, &serverAddress, &serverAddressLen, &numOfSegmentReceived]() {
+        this->processThread(serverAddress, serverAddressLen, numOfSegmentReceived);
     });
 
     receiver.join();
     processor.join();
 
-    uint32_t totalBytesRead = this->segmentHandler->getDatastream((uint8_t *)buffer, length);
-
-    return totalBytesRead;
+    this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+    
+    return this->totalBytesRead;
 }
 
 void TCPSocket::close(const string &ip, int32_t port)
@@ -419,8 +414,6 @@ void TCPSocket::close(const string &ip, int32_t port)
         // Check if the packet is a valid FIN-ACK and the sequence number matches
         if (flagsToByte(finAckSeg) && finAckSeg.acknowledgementNumber == finSeg.sequenceNumber + 1)
         {
-            this->status = LAST_ACK;
-
             cout << "[+] [Closing] Received FIN-ACK request from " << ip << ":" << port << endl;
 
             // Send ACK response to finalize the closure
@@ -436,14 +429,69 @@ void TCPSocket::close(const string &ip, int32_t port)
                 return;
             }
 
-            this->status = TCPStatusEnum::LISTEN;
+            this->status = TIMED_WAIT;
 
+            cout << "[i] [Closing] Entering TIME_WAIT state for a brief period" << endl;
+
+            auto timeWaitStart = chrono::steady_clock::now();
+            auto timeWaitDuration = chrono::seconds(20);
+
+            fd_set readfds;
+            struct timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 100000;
+
+            while (chrono::steady_clock::now() - timeWaitStart < timeWaitDuration)
+            {
+                FD_ZERO(&readfds);
+                FD_SET(this->socket, &readfds);
+
+                int ret = select(this->socket + 1, &readfds, nullptr, nullptr, &tv);
+
+                if (ret > 0 && FD_ISSET(this->socket, &readfds))
+                {
+                    // If data is available, process it
+                    recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
+                                          (struct sockaddr *)&clientAddress, &clientAddressLen);
+
+                    if (recvBufLen > 0)
+                    {
+                        Segment recvSeg;
+                        deserializeToSegment(&recvSeg, recvBuf, recvBufLen);
+
+                        if (flagsToByte(recvSeg) == FIN_FLAG)
+                        {
+                            ackSeg = ack(recvSeg.sequenceNumber + 1);
+                            uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
+
+                            cout << "[i] [Closing] Sending ACK request to " << ip << ":" << port << endl;
+                            ssize_t ackSent = sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0,
+                                                    (struct sockaddr *)&clientAddress, clientAddressLen);
+                            if (ackSent < 0)
+                            {
+                                cerr << "[!] [Closing] Failed to send ACK" << endl;
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            cout << "[i] [Closing] Received stray packet during TIME_WAIT, ignoring." << endl;
+                        }
+                    }
+                }
+
+                this_thread::sleep_for(chrono::milliseconds(100));
+            }
+
+            cout << "[i] [Closing] TIME_WAIT period expired, connection is fully closed." << endl;
+
+            this->status = LISTEN;
             cout << "[i] [Closed] Connection closed successfully with " << ip << ":" << port << endl;
             return;
         }
         else
         {
-            cerr << "[!] Invalid packet or out of order" << endl;
+            cerr << "[!] [Closing] Invalid packet or out of order" << endl;
 
             // Retry logic
             if (++retryCount < MAX_RETRIES)
@@ -492,7 +540,7 @@ void TCPSocket::listenACK(const string &ip, int32_t port)
 }
 
 // Client zone
-void TCPSocket::receiveThread(ThreadSafeQueue<std::vector<uint8_t>>& queue, sockaddr_in& serverAddress, socklen_t& serverAddressLen)
+void TCPSocket::receiveThread(sockaddr_in& serverAddress, socklen_t& serverAddressLen)
 {
     while (this->isReceiving)
     {
@@ -504,21 +552,27 @@ void TCPSocket::receiveThread(ThreadSafeQueue<std::vector<uint8_t>>& queue, sock
 
         if (bytesRead < 0)
         {
+            // add condition to display message with [Established] or [Closing]
+            if (this->status == ESTABLISHED)
+            {
+                cout << "[!] [Established] ";
+            }
             cerr << "Failed to receive data" << endl;
             continue;
         }
-
-        // Store received packet in the queue
-        vector<uint8_t> packet(recvBuffer, recvBuffer + bytesRead);
-        queue.push(packet);
+        else
+        {
+            vector<uint8_t> packet(recvBuffer, recvBuffer + bytesRead);
+            this->packetQueue.push(packet);
+        }
     }
 }
 
-void TCPSocket::processThread(ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_in &serverAddress, socklen_t serverAddressLen, atomic<uint32_t> &numOfSegmentReceived)
+void TCPSocket::processThread(sockaddr_in &serverAddress, socklen_t serverAddressLen, atomic<uint32_t> &numOfSegmentReceived)
 {
     while (true)
     {
-        vector<uint8_t> packet = queue.pop();
+        vector<uint8_t> packet = this->packetQueue.pop();
 
         Segment seg;
         deserializeToSegment(&seg, packet.data(), packet.size());
@@ -543,6 +597,7 @@ void TCPSocket::processThread(ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_
                 }
 
                 this->segmentHandler->appendSegmentBuffer(&seg);
+                this->totalBytesRead += packet.size() - BASE_SEGMENT_SIZE;
                 this->lfr = seg.sequenceNumber + packet.size() - BASE_SEGMENT_SIZE - 1;
 
                 numOfSegmentReceived.fetch_add(1, memory_order_relaxed);
@@ -583,20 +638,19 @@ void TCPSocket::processThread(ThreadSafeQueue<vector<uint8_t>> &queue, sockaddr_
 
 void TCPSocket::handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverAddressLen, uint32_t sequenceNumber, uint32_t ackNumber)
 {
-    const int MAX_RETRIES = 5;
     const chrono::milliseconds TIMEOUT(500);
 
     int retries = 0;
 
     // Send FIN-ACK to acknowledge the last FIN
-    Segment finAckSeg = finAck(sequenceNumber, ackNumber);
-    uint8_t *finAckSegBuf = serializeSegment(&finAckSeg, 0, 0);
+    Segment sentSeg = finAck(sequenceNumber, ackNumber);
+    uint8_t *sentSegBuf = serializeSegment(&sentSeg, 0, 0);
 
     cout << "[i] [Closing] Sending FIN-ACK..." << endl;
 
     while (retries < MAX_RETRIES)
     {
-        ssize_t bytesSent = sendto(this->socket, finAckSegBuf, BASE_SEGMENT_SIZE, 0,
+        ssize_t bytesSent = sendto(this->socket, sentSegBuf, BASE_SEGMENT_SIZE, 0,
                                    (struct sockaddr *)&serverAddress, serverAddressLen);
 
         if (bytesSent < 0)
@@ -608,32 +662,45 @@ void TCPSocket::handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverA
         }
 
         // Wait for final ACK
-        uint8_t recvBuf[BASE_SEGMENT_SIZE];
-        memset(recvBuf, 0, BASE_SEGMENT_SIZE);
-
         cout << "[i] [Closing] Waiting for final ACK..." << endl;
 
-        ssize_t recvBufLen = recvfrom(this->socket, recvBuf, BASE_SEGMENT_SIZE, 0,
-                                      (struct sockaddr *)&serverAddress, &serverAddressLen);
+        bool receivedValidAck = false;
 
-        if (recvBufLen > 0)
+        auto startTime = chrono::steady_clock::now();
+        while (chrono::steady_clock::now() - startTime < TIMEOUT)
         {
-            Segment ackSeg;
-            deserializeToSegment(&ackSeg, recvBuf, BASE_SEGMENT_SIZE);
-
-            // Check if the received packet is a valid ACK
-            if (flagsToByte(ackSeg) == ACK_FLAG && ackSeg.acknowledgementNumber == sequenceNumber + 1)
+            if (!this->packetQueue.empty())
             {
-                cout << "[i] [Closing] Final ACK received. Closing connection." << endl;
-                this->isReceiving = false;
+                vector<uint8_t> packet = this->packetQueue.pop();
 
-                return;
+                Segment ackSeg;
+                deserializeToSegment(&ackSeg, packet.data(), packet.size());
+
+                // Check if the received packet is a valid ACK
+                if (flagsToByte(ackSeg) == ACK_FLAG && ackSeg.acknowledgementNumber == sequenceNumber + 1)
+                {
+                    cout << "[i] [Closing] Final ACK received. Closing connection." << endl;
+                    this->isReceiving = false;
+                    receivedValidAck = true;
+                    return;
+                }
             }
+
+            this_thread::sleep_for(chrono::milliseconds(100));
+        }
+
+        if (receivedValidAck)
+        {
+            return;
         }
 
         // Retry on timeout or invalid packet
-        cerr << "[!] Timeout or invalid ACK. Retrying FIN-ACK..." << endl;
+        cerr << "[!] [Closing] Timeout or invalid ACK. Retrying FIN..." << endl;
         ++retries;
+
+        sentSeg = fin(sequenceNumber);
+        sentSegBuf = serializeSegment(&sentSeg, 0, 0);
+
         this_thread::sleep_for(TIMEOUT);
     }
 

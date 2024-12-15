@@ -32,7 +32,9 @@ enum TCPStatusEnum
     FIN_WAIT_2 = 5,
     CLOSE_WAIT = 6,
     CLOSING = 7,
-    LAST_ACK = 8
+    LAST_ACK = 8,
+    TIMED_WAIT = 9,
+    CLOSED = 10,
 };
 
 class TCPSocket
@@ -74,8 +76,11 @@ private:
 
     // buat recv()
     bool isReceiving;
-    void receiveThread(ThreadSafeQueue<std::vector<uint8_t>>& queue, sockaddr_in& serverAddress, socklen_t& serverAddressLen);
-    void processThread(ThreadSafeQueue<std::vector<uint8_t>>& queue, sockaddr_in& serverAddress, socklen_t serverAddressLen, 
+    uint32_t totalBytesRead;
+    ThreadSafeQueue<std::vector<uint8_t>> packetQueue;
+
+    void receiveThread(sockaddr_in& serverAddress, socklen_t& serverAddressLen);
+    void processThread(sockaddr_in& serverAddress, socklen_t serverAddressLen, 
                        std::atomic<uint32_t>& numOfSegmentReceived);
     void handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverAddressLen, uint32_t sequenceNumber, uint32_t ackNumber);
 
@@ -83,8 +88,6 @@ private:
 public:
     TCPSocket(const std::string &ip, int32_t port);
     ~TCPSocket();
-
-    TCPStatusEnum getStatus();
 
     std::pair<std::string, int32_t> listen();
 

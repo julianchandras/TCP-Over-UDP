@@ -29,7 +29,7 @@ public:
     std::vector<Segment *> advanceWindow(uint8_t size);
 
     void appendSegmentBuffer(Segment *Seg);
-    uint32_t getDatastream(uint8_t *dataStream, uint32_t bufferSize);
+    void getDatastream(uint8_t *dataStream, uint32_t bufferSize);
 
     // cuman buat server
     std::vector<Segment> ackChecker;
