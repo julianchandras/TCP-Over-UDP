@@ -9,6 +9,8 @@
 #include <chrono>
 #include <arpa/inet.h>
 #include <atomic>
+#include <fcntl.h>
+#include <set>
 #include "segment.hpp"
 #include "segment_handler.hpp"
 #include "CSPRNG.hpp"
@@ -60,15 +62,15 @@ private:
     CSPRNG *rand;
 
     uint32_t sws = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE; // sent window size
-    uint32_t lar = 0; // last ack received
-    uint32_t lfs = 0; // last frame sent
+    uint32_t lar = 0;                                      // last ack received
+    uint32_t lfs = 0;                                      // last frame sent
 
     uint32_t rws = DEFAULT_WINDOW_SIZE * MAX_PAYLOAD_SIZE; // received window size
-    uint32_t lfr = 0; // last frame received
-    uint32_t laf = 0; // largest acceptable frame
+    uint32_t lfr = 0;                                      // last frame received
+    uint32_t laf = 0;                                      // largest acceptable frame
 
     std::vector<Segment *> window;
-    
+
     // buat send()
     std::mutex serverLock;
     bool terminateACK;
@@ -79,11 +81,10 @@ private:
     uint32_t totalBytesRead;
     ThreadSafeQueue<std::vector<uint8_t>> packetQueue;
 
-    void receiveThread(sockaddr_in& serverAddress, socklen_t& serverAddressLen);
-    void processThread(sockaddr_in& serverAddress, socklen_t serverAddressLen, 
-                       std::atomic<uint32_t>& numOfSegmentReceived);
+    void receiveThread(sockaddr_in &serverAddress, socklen_t &serverAddressLen);
+    void processThread(sockaddr_in &serverAddress, socklen_t serverAddressLen,
+                       std::atomic<uint32_t> &numOfSegmentReceived);
     void handleFinHandshake(sockaddr_in &serverAddress, socklen_t serverAddressLen, uint32_t sequenceNumber, uint32_t ackNumber);
-
 
 public:
     TCPSocket(const std::string &ip, int32_t port);
@@ -97,6 +98,7 @@ public:
     std::string connect(const std::string &broadcastAddr, int32_t port);
 
     void send(const std::string &ip, int32_t port, void *dataStream, uint32_t dataSize);
+    void sendRevised(const std::string &ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(void *buffer, uint32_t length);
     void close(const std::string &ip, int32_t port);
 };

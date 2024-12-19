@@ -1,4 +1,4 @@
-#include "segment_handler.hpp"  
+#include "segment_handler.hpp"
 #include "utils.hpp"
 #include <iostream>
 
@@ -15,7 +15,7 @@ SegmentHandler::SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint3
 void SegmentHandler::generateSegments()
 {
     // uint32_t bytesProcessed = 0;
-    
+
     this->segmentBuffer.clear();
 
     // putting input into a segment aka adding tcp header
@@ -27,7 +27,7 @@ void SegmentHandler::generateSegments()
         size_t offset = MAX_PAYLOAD_SIZE * i;
 
         size_t payloadSize;
-        
+
         if (i == numOfSegments - 1)
         {
             payloadSize = this->dataSize - offset;
@@ -70,19 +70,25 @@ uint32_t SegmentHandler::getCurrentSeqNum()
     return this->currentSeqNum;
 }
 
-vector<Segment*> SegmentHandler::advanceWindow(uint8_t size)
+size_t SegmentHandler::getSegmentBufferSize()
 {
-    vector<Segment*> segmentList;
+    return this->segmentBuffer.size();
+}
 
+void SegmentHandler::advanceWindow(uint8_t size, std::vector<Segment *> *window)
+{
+    // cout << "segment buffer total size: " << segmentBuffer.size();
+    if (segmentBuffer.size() < size)
+    {
+        size = segmentBuffer.size();
+    }
     while (size > 0 && dataIndex < segmentBuffer.size())
     {
-        Segment* segment = &segmentBuffer.at(dataIndex);
-        segmentList.push_back(segment);
+        Segment *segment = &segmentBuffer.at(dataIndex);
+        window->push_back(segment);
         dataIndex++;
         size--;
     }
-
-    return segmentList;
 }
 
 void SegmentHandler::appendSegmentBuffer(Segment *seg)

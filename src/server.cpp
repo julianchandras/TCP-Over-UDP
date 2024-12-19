@@ -110,7 +110,7 @@ void Server::run()
 
     // Send the data stream to the client
     auto [clientIp, clientPort] = this->connection->listen();
-    this->connection->send(clientIp, clientPort, dataStream, dataSize);
+    this->connection->sendRevised(clientIp, clientPort, dataStream, dataSize);
     this->connection->close(clientIp, clientPort);
     free(dataStream);
 }

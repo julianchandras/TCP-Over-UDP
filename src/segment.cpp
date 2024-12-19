@@ -6,7 +6,7 @@ Segment initializeSegment()
     memset(&seg, 0, sizeof(Segment)); // changes all of the data in memory of seg to zero
     seg.options = nullptr;
     seg.payload = nullptr;
-    seg.reserved = 0;     // sebenarnya seharusnya udh 0 gr2 memset, ini biar penjelas aja sih
+    seg.reserved = 0; // sebenarnya seharusnya udh 0 gr2 memset, ini biar penjelas aja sih
     seg.dataOffset = 5;
     return seg;
 }
@@ -58,7 +58,7 @@ Segment finAck(uint32_t seqNum, uint32_t ackNum)
 uint16_t computeChecksum(const uint8_t *data, size_t length)
 {
     uint32_t sum = 0;
-    
+
     for (size_t i = 0; i < length; i += 2)
     {
         uint16_t word = (data[i] << 8) | (i + 1 < length ? data[i + 1] : 0);
@@ -126,7 +126,7 @@ bool isValidChecksum(Segment segment)
     uint8_t *checksumBytes = calculateChecksum(segment);
     uint16_t checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
     delete[] checksumBytes;
-    return checkSum+segment.checkSum == 0xFFFF;
+    return checkSum + segment.checkSum == 0xFFFF;
 }
 
 uint8_t flagsToByte(Segment segment)
@@ -135,3 +135,4 @@ uint8_t flagsToByte(Segment segment)
             (segment.flags.psh << 3) | (segment.flags.ack << 4) | (segment.flags.urg << 5) |
             (segment.flags.ece << 6) | (segment.flags.cwr << 7));
 }
+
