@@ -445,7 +445,7 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
     receiveACK.join();
 }
 
-int32_t TCPSocket::recv(void *buffer, uint32_t length)
+int32_t TCPSocket::recv(std::vector<uint8_t> &dataStream)
 {
     cout << "[~] [Established] Waiting for segments to be sent" << endl;
 
@@ -467,7 +467,7 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
     receiver.join();
     processor.join();
 
-    this->segmentHandler->getDatastream((uint8_t *)buffer, length);
+    this->segmentHandler->getDatastream(dataStream);
 
     return this->totalBytesRead;
 }

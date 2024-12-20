@@ -96,43 +96,22 @@ void SegmentHandler::appendSegmentBuffer(Segment *seg)
     this->segmentBuffer.push_back(*seg);
 }
 
-void SegmentHandler::getDatastream(uint8_t *dataStream, uint32_t bufferSize)
+void SegmentHandler::getDatastream(std::vector<uint8_t> &dataStream)
 {
     if (this->segmentBuffer.empty())
     {
         throw runtime_error("No segments to reconstruct the data stream!");
     }
 
-    memset(dataStream, 0, bufferSize);
-
-    uint32_t totalBytesRead = 0;
+    dataStream.clear();
 
     auto lastIter = segmentBuffer.end() - 1;
 
     for (auto iter = segmentBuffer.begin(); iter != segmentBuffer.end(); ++iter)
     {
         const Segment &seg = *iter;
-
-        uint32_t payloadSize;
-        if (iter != lastIter)
-        {
-            payloadSize = MAX_PAYLOAD_SIZE;
-        }
-        else
-        {
-            payloadSize = bufferSize - totalBytesRead;
-        }
-
-        if (totalBytesRead + payloadSize <= bufferSize)
-        {
-            memcpy(dataStream + totalBytesRead, seg.payload, payloadSize);
-            totalBytesRead += payloadSize;
-        }
-        else
-        {
-            throw runtime_error("Provided buffer is too small to hold the full data stream!");
-        }
+        
+        dataStream.insert(dataStream.end(), seg.payload, seg.payload + MAX_PAYLOAD_SIZE);
     }
-
-    return;
 }
+
