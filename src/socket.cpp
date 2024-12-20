@@ -235,7 +235,7 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
                 retryCount++;
                 continue;
             }
-            segmentHandler = new SegmentHandler(BASE_SEGMENT_SIZE, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
+            segmentHandler = new SegmentHandler(DEFAULT_WINDOW_SIZE, ackSeg.acknowledgementNumber, synAckSeg.sequenceNumber);
 
             this->status = ESTABLISHED;
 
@@ -315,7 +315,7 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
                     {
                         sentSegment.insert(seqNum);
                     }
-                    this->lfs = seqNum + payloadSize + BASE_SEGMENT_SIZE;
+                    this->lfs = seqNum + payloadSize;
                     numOfSegmentSent++;
                     delete[] buffer;
                 }
@@ -336,7 +336,7 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
             {
                 if (ackSeg.acknowledgementNumber > this->lar && ackSeg.acknowledgementNumber <= this->lfs + 1)
                 {
-                    cout << "[!] ACK RECEIVED [" << ackSeg.acknowledgementNumber << "]\n";
+                    cout << "[!] [Established] ACK Received [" << ackSeg.acknowledgementNumber << "]\n";
                     this->lar = ackSeg.acknowledgementNumber;
                     recieveACKTime = chrono::steady_clock::now();
                     // Move the window forward
@@ -474,7 +474,21 @@ int32_t TCPSocket::recv(void *buffer, uint32_t length)
 
 void TCPSocket::close(const string &ip, int32_t port)
 {
-    Segment finSeg = fin(this->segmentHandler->getCurrentSeqNum());
+    // Set the socket back to blocking
+    // Why? Terlanjur
+    int flags = fcntl(this->socket, F_GETFL, 0);
+    if (flags == -1) {
+        throw runtime_error("Error retrieving socket flags!");
+        return;
+    }
+
+    if (fcntl(this->socket, F_SETFL, flags & ~O_NONBLOCK) == -1)
+    {
+        std::cerr << "Error setting blocking mode!" << std::endl;
+        return;
+    }
+
+    Segment finSeg = fin(this->lfs);
     uint8_t *finSegBuf = serializeSegment(&finSeg, 0, 0);
 
     sockaddr_in clientAddress;
