@@ -14,9 +14,9 @@ void Client::run()
 
     auto interfaces = Node::getNetworkInterfaces();
     printNetworkInterfaces(interfaces);
-    if (interfaces.size() > 2)
+    if (interfaces.size() > 1)
     {
-        broadcastAddr = interfaces.at(2).broadcast;
+        broadcastAddr = interfaces.at(interfaces.size() - 1).broadcast;
     }
     else
     {
