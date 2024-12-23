@@ -130,6 +130,8 @@ pair<string, int32_t> TCPSocket::listen()
                     {
                         cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Received ACK request from " << remoteIp << ":" << remotePort << endl;
 
+
+                        this->lar = ackSeg.acknowledgementNumber;
                         this->status = ESTABLISHED;
 
                         segmentHandler = new SegmentHandler(DEFAULT_WINDOW_SIZE, ackSeg.acknowledgementNumber, synAckSeg.acknowledgementNumber);
