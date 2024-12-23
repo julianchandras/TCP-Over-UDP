@@ -113,18 +113,17 @@ uint8_t *calculateChecksum(Segment segment)
     return checksumBytes;
 }
 
-Segment updateChecksum(Segment segment)
+void updateChecksum(Segment &segment)
 {
     uint8_t *checksumBytes = calculateChecksum(segment);
     segment.checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
     delete[] checksumBytes;
-    return segment;
 }
 
 bool isValidChecksum(Segment segment)
 {
     uint8_t *checksumBytes = calculateChecksum(segment);
-    uint16_t checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    uint16_t checkSum = ~((checksumBytes[0] << 8) | checksumBytes[1]);
     delete[] checksumBytes;
     return checkSum + segment.checkSum == 0xFFFF;
 }

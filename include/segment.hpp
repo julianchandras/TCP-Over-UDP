@@ -82,7 +82,7 @@ uint8_t *calculateChecksum(Segment segment);
 /**
  * Return a new segment with a calcuated checksum fields
  */
-Segment updateChecksum(Segment segment);
+void updateChecksum(Segment &segment);
 
 /**
  * Check if a TCP Segment has a valid checksum

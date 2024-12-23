@@ -706,11 +706,11 @@ void TCPSocket::processThread(sockaddr_in &serverAddress, socklen_t serverAddres
             retransmit = true;
         }
 
-        // if (!isValidChecksum(seg))
-        // {
-        //     cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment corrupt" << endl;
-        //     retransmit = true;
-        // }
+        if (!isValidChecksum(seg))
+        {
+            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment corrupt" << endl;
+            retransmit = true;
+        }
 
         if (seg.sequenceNumber == this->lfr + 1 && !retransmit)
         {
