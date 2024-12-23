@@ -13,7 +13,7 @@ void Client::run()
     int32_t serverPort;
 
     auto interfaces = Node::getNetworkInterfaces();
-
+    printNetworkInterfaces(interfaces);
     if (interfaces.size() > 2)
     {
         broadcastAddr = interfaces.at(2).broadcast;
@@ -50,8 +50,8 @@ void Client::run()
 
     if (nameLength == 0)
     {
-        cout << "[i] Message received: " 
-             << string(reinterpret_cast<char *>(buffer.data() + offset), dataLength - offset) 
+        cout << "[i] Message received: "
+             << string(reinterpret_cast<char *>(buffer.data() + offset), dataLength - offset)
              << endl;
         cout << "[i] Message length: " << dataLength - offset << endl;
         return;
