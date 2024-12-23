@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 #include <thread>
 #include <map>
+#include <cmath>
 
 using namespace std;
 
@@ -290,6 +291,8 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
     size_t ackReceived = 0;
     while (ackReceived < segmentBufferSize)
     {
+        cout << "ack received: "<< ackReceived<<endl;
+        cout << "segment buffer size: "<< segmentBufferSize<<endl;
         // sending part
         size_t firstIndexofWindow = (windowSize > segmentBufferSize) ? 0 : this->segmentHandler->dataIndex - windowSize;
         // cout << "Remaining data size: " << remainingDataSize << endl;
@@ -339,12 +342,15 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
                 if (ackSeg.acknowledgementNumber > this->lar && ackSeg.acknowledgementNumber <= this->lfs + 1)
                 {
                     cout << "[!] [Established] ACK Received [" << ackSeg.acknowledgementNumber << "]\n";
+                    // Move the window forward
+                    uint32_t numSegmentsAcked = ceil((ackSeg.acknowledgementNumber - this->lar) / MAX_PAYLOAD_SIZE);
+                    this->segmentHandler->advanceWindow(numSegmentsAcked, &this->window);
+                    uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
+                    
+                    ackReceived += numSegmentsAcked;
+
                     this->lar = ackSeg.acknowledgementNumber;
                     recieveACKTime = chrono::steady_clock::now();
-                    // Move the window forward
-                    this->segmentHandler->advanceWindow(1, &this->window);
-                    uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
-                    ackReceived++;
                     // cout << "ack received: " << ackReceived << endl;
                     // cout << "segment buffer size: " << segmentBufferSize << endl;
                 }
