@@ -15,16 +15,6 @@ struct NetworkInterface
     std::string broadcast;
 };
 
-void printNetworkInterfaces(const std::vector<NetworkInterface> &interfaces)
-{
-    for (const auto &iface : interfaces)
-    {
-        std::cout << "Name: " << iface.name << std::endl;
-        std::cout << "IP: " << iface.ip << std::endl;
-        std::cout << "Broadcast: " << iface.broadcast << std::endl;
-        std::cout << "---------------------------" << std::endl;
-    }
-}
 
 /**
  * Abstract class.

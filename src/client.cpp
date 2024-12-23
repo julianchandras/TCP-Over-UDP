@@ -7,6 +7,17 @@ using namespace std;
 
 Client::Client(const string &ip, int32_t port) : Node(ip, port) {}
 
+void printNetworkInterfaces(const std::vector<NetworkInterface> &interfaces)
+{
+    for (const auto &iface : interfaces)
+    {
+        std::cout << "Name: " << iface.name << std::endl;
+        std::cout << "IP: " << iface.ip << std::endl;
+        std::cout << "Broadcast: " << iface.broadcast << std::endl;
+        std::cout << "---------------------------" << std::endl;
+    }
+}
+
 void Client::run()
 {
     string broadcastAddr;
@@ -16,7 +27,7 @@ void Client::run()
     printNetworkInterfaces(interfaces);
     if (interfaces.size() > 1)
     {
-        broadcastAddr = interfaces.at(interfaces.size() - 1).broadcast;
+        broadcastAddr = interfaces.at(1).broadcast;
     }
     else
     {
