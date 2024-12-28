@@ -77,17 +77,17 @@ Segment finAck(uint32_t seqNum, uint32_t ackNum);
 /**
  * Calculate checksum of a segment
  */
-uint8_t *calculateChecksum(Segment segment);
+uint8_t *calculateChecksum(Segment segment, size_t payloadSize);
 
 /**
  * Return a new segment with a calcuated checksum fields
  */
-void updateChecksum(Segment &segment);
+void updateChecksum(Segment &segment, size_t payloadSize);
 
 /**
  * Check if a TCP Segment has a valid checksum
  */
-bool isValidChecksum(Segment segment);
+bool isValidChecksum(Segment segment, size_t payloadSize);
 
 /**
  * Convert the flags to uint8_t

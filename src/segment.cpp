@@ -16,7 +16,7 @@ Segment syn(uint32_t seqNum)
     Segment synSeg = initializeSegment();
     synSeg.sequenceNumber = seqNum;
     synSeg.flags.syn = 1;
-    updateChecksum(synSeg);
+    updateChecksum(synSeg, 0);
     return synSeg;
 }
 
@@ -25,7 +25,7 @@ Segment ack(uint32_t ackNum)
     Segment ackSeg = initializeSegment();
     ackSeg.acknowledgementNumber = ackNum;
     ackSeg.flags.ack = 1;
-    updateChecksum(ackSeg);
+    updateChecksum(ackSeg, 0);
     return ackSeg;
 }
 
@@ -36,7 +36,7 @@ Segment synAck(uint32_t seqNum, uint32_t ackNum)
     saSeg.acknowledgementNumber = ackNum;
     saSeg.flags.syn = 1;
     saSeg.flags.ack = 1;
-    updateChecksum(saSeg);
+    updateChecksum(saSeg, 0);
     return saSeg;
 }
 
@@ -45,7 +45,7 @@ Segment fin(uint32_t seqNum)
     Segment finSeg = initializeSegment();
     finSeg.sequenceNumber = seqNum;
     finSeg.flags.fin = 1;
-    updateChecksum(finSeg);
+    updateChecksum(finSeg, 0);
     return finSeg;
 }
 
@@ -56,29 +56,11 @@ Segment finAck(uint32_t seqNum, uint32_t ackNum)
     faSeg.acknowledgementNumber = ackNum;
     faSeg.flags.fin = 1;
     faSeg.flags.ack = 1;
-    updateChecksum(faSeg);
+    updateChecksum(faSeg, 0);
     return faSeg;
 }
 
-uint16_t computeChecksum(const uint8_t *data, size_t length)
-{
-    uint32_t sum = 0;
-
-    for (size_t i = 0; i < length; i += 2)
-    {
-        uint16_t word = (data[i] << 8) | (i + 1 < length ? data[i + 1] : 0);
-        sum += word;
-    }
-
-    while (sum >> 16)
-    {
-        sum = (sum & 0xFFFF) + (sum >> 16);
-    }
-
-    return static_cast<uint16_t>(~sum);
-}
-
-uint8_t *calculateChecksum(Segment segment)
+uint8_t *calculateChecksum(Segment segment, size_t payloadSize)
 {
     uint32_t sum = 0;
 
@@ -97,7 +79,6 @@ uint8_t *calculateChecksum(Segment segment)
 
     if (segment.payload)
     {
-        size_t payloadSize = strlen(reinterpret_cast<const char *>(segment.payload));
         for (size_t i = 0; i < payloadSize; i += 2)
         {
             uint16_t word = (segment.payload[i] << 8) | (i + 1 < payloadSize ? segment.payload[i + 1] : 0);
@@ -118,20 +99,22 @@ uint8_t *calculateChecksum(Segment segment)
     return checksumBytes;
 }
 
-void updateChecksum(Segment &segment)
+void updateChecksum(Segment &segment, size_t payloadSize)
 {
-    uint8_t *checksumBytes = calculateChecksum(segment);
-    segment.checkSum = (checksumBytes[0] << 8) | checksumBytes[1];
+    uint8_t *checksumBytes = calculateChecksum(segment, payloadSize);
+    segment.checkSum = (static_cast<uint16_t>(checksumBytes[0]) << 8) | checksumBytes[1];
     delete[] checksumBytes;
 }
 
-bool isValidChecksum(Segment segment)
+bool isValidChecksum(Segment segment, size_t payloadSize)
 {
-    uint8_t *checksumBytes = calculateChecksum(segment);
-    uint16_t checkSum = ~((checksumBytes[0] << 8) | checksumBytes[1]);
+    uint8_t *checksumBytes = calculateChecksum(segment, payloadSize);
+    uint16_t checkSum = ~((static_cast<uint16_t>(checksumBytes[0]) << 8) | checksumBytes[1]);
     delete[] checksumBytes;
+    
     return checkSum + segment.checkSum == 0xFFFF;
 }
+
 
 uint8_t flagsToByte(Segment segment)
 {

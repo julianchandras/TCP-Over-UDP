@@ -47,7 +47,7 @@ void SegmentHandler::generateSegments()
         }
 
         memcpy(seg.payload, this->dataStream + offset, payloadSize);
-        updateChecksum(seg);
+        updateChecksum(seg, payloadSize);
         this->segmentBuffer.push_back(seg);
         this->currentSeqNum += payloadSize;
     }

@@ -258,7 +258,7 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
     return "";
 }
 
-void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, uint32_t dataSize)
+void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t dataSize)
 {
     if (this->status != ESTABLISHED)
     {
@@ -283,7 +283,6 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
     chrono::time_point<chrono::steady_clock> recieveACKTime = chrono::steady_clock::now();
     cout << "[i] [Established] Sending input to " << ip << ":" << port << endl;
     uint32_t numOfSegmentSent = 1;
-    uint32_t remainingDataSize = dataSize;
     std::set<uint32_t> sentSegment;
     // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
     this->segmentHandler->advanceWindow(windowSize, &this->window);
@@ -297,11 +296,21 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
         //  cout << "First Index of window: " << firstIndexofWindow << endl;
         //  cout << "window size: " << this->window.size() << endl;
         //  cout << firstIndexofWindow << "\n";
+        numOfSegmentSent = ackReceived;
         for (size_t i = firstIndexofWindow; i < this->window.size(); i++)
         {
             Segment *tempSeg = window[i];
             uint32_t seqNum = tempSeg->sequenceNumber;
-            uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
+            uint32_t payloadSize;
+            if (segmentBufferSize - numOfSegmentSent > 1)
+            {
+                payloadSize = MAX_SEGMENT_SIZE;
+            }
+            else
+            {
+                payloadSize = dataSize - numOfSegmentSent * MAX_PAYLOAD_SIZE;
+            }
+
             if (sentSegment.find(seqNum) == sentSegment.end() || chrono::steady_clock::now() - recieveACKTime > TIMEOUT_DURATION)
             {
                 uint8_t *buffer = serializeSegment(tempSeg, 0, payloadSize);
@@ -313,13 +322,14 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
                 }
                 else
                 {
+                    // cout << ackReceived << endl;
+                    numOfSegmentSent++;
                     cout << "[i] [Established] [Seg " << numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
                     if (chrono::steady_clock::now() - recieveACKTime <= TIMEOUT_DURATION)
                     {
                         sentSegment.insert(seqNum);
                     }
                     this->lfs = seqNum + payloadSize;
-                    numOfSegmentSent++;
                     delete[] buffer;
                 }
             }
@@ -343,7 +353,6 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
                     // Move the window forward
                     uint32_t numSegmentsAcked = ceil((float) (ackSeg.acknowledgementNumber - this->lar) / MAX_PAYLOAD_SIZE);
                     this->segmentHandler->advanceWindow(numSegmentsAcked, &this->window);
-                    uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
                     
                     ackReceived += numSegmentsAcked;
 
@@ -353,100 +362,6 @@ void TCPSocket::sendRevised(const string &ip, int32_t port, void *dataStream, ui
             }
         }
     }
-}
-
-void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t dataSize)
-{
-    if (this->status != ESTABLISHED)
-    {
-        cout << "[i] Connection has not been established" << endl;
-        return;
-    }
-    sockaddr_in clientAddress;
-    clientAddress.sin_family = AF_INET;
-    clientAddress.sin_port = htons(port);
-    if (inet_pton(AF_INET, ip.c_str(), &clientAddress.sin_addr) <= 0)
-    {
-        throw runtime_error("Invalid IP address");
-    }
-
-    this->window.clear();
-
-    // Experimenting with segment handler
-    this->segmentHandler->setDataStream((uint8_t *)dataStream, dataSize);
-    // tcp socket yang dimiliki node, memiliki segment handler
-    // segment handler ada segment buffer
-    // dengan generateSegments, segment buffer diisi dengan segment yang di set dari setDataStream
-    this->segmentHandler->generateSegments();
-
-    uint8_t initWindowSize = this->segmentHandler->getWindowSize();
-    uint8_t windowSize = initWindowSize;
-
-    thread receiveACK([this, ip, port]()
-                      { this->listenACK(ip, port); });
-    map<int, chrono::time_point<chrono::steady_clock>> sendTimes;
-
-    // kita bisa menggunakan dataSize yang dikurang tiap kali paket terikirim.
-    // Jika ternyata data size sudah < max-payload_size artinya kita serialize based on size itu aja
-
-    cout << "[i] Sending input to " << ip << ":" << port << endl;
-
-    uint32_t numOfSegmentSent = 1;
-    this->terminateACK = false;
-    bool cont = true;
-
-    uint32_t remainingDataSize = dataSize;
-    while (cont)
-    {
-        // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
-        this->segmentHandler->advanceWindow(windowSize, &this->window);
-
-        vector<Segment *>::iterator myItr;
-        for (myItr = this->window.begin(); myItr != this->window.end(); myItr++)
-        {
-            Segment *tempSeg = *myItr;
-            uint32_t seqNum = tempSeg->sequenceNumber;
-
-            uint32_t payloadSize = (remainingDataSize < MAX_PAYLOAD_SIZE) ? remainingDataSize : MAX_PAYLOAD_SIZE;
-
-            // kalau belum ada di map atau melebihi timeout
-            if (sendTimes.find(seqNum) == sendTimes.end() || chrono::steady_clock::now() - sendTimes[seqNum] > TIMEOUT_DURATION)
-            {
-                uint8_t *buffer = serializeSegment(*myItr, 0, payloadSize);
-                ssize_t sentLen = sendto(this->socket, buffer, payloadSize + BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&clientAddress, sizeof(clientAddress));
-
-                if (sentLen < 0)
-                {
-                    perror("Error sending segment");
-                }
-                else
-                {
-                    cout << "[i] [Established] [Seg " << numOfSegmentSent << "] [S=" << seqNum << "] Sent" << endl;
-
-                    // masukkan ke map ketika sudah di send
-                    sendTimes[seqNum] = chrono::steady_clock::now();
-                    this->lfs = seqNum;
-
-                    numOfSegmentSent++;
-
-                    remainingDataSize -= payloadSize;
-
-                    delete[] buffer;
-                }
-            }
-        }
-        // calculate window size
-        serverLock.lock();
-        windowSize = (this->lfs - this->lar) / MAX_SEGMENT_SIZE;
-        serverLock.unlock();
-        if (this->window.empty())
-        {
-            cont = false;
-        }
-    }
-
-    this->terminateACK = true;
-    receiveACK.join();
 }
 
 int32_t TCPSocket::recv(std::vector<uint8_t> &dataStream)
@@ -733,7 +648,7 @@ void TCPSocket::processThread(sockaddr_in &serverAddress, socklen_t serverAddres
             retransmit = true;
         }
 
-        if (!isValidChecksum(seg))
+        if (!isValidChecksum(seg, packet.size() - BASE_SEGMENT_SIZE))
         {
             cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment corrupt" << endl;
             retransmit = true;

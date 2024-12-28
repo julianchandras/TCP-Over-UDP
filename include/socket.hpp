@@ -98,7 +98,6 @@ public:
     std::string connect(const std::string &broadcastAddr, int32_t port);
 
     void send(const std::string &ip, int32_t port, void *dataStream, uint32_t dataSize);
-    void sendRevised(const std::string &ip, int32_t port, void *dataStream, uint32_t dataSize);
     int32_t recv(std::vector<uint8_t> &dataStream);
     void close(const std::string &ip, int32_t port);
 };

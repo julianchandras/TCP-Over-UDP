@@ -12,6 +12,5 @@
 uint8_t *serializeSegment(Segment *toBeSent, size_t optionsLen, size_t payloadLen);
 void deserializeToSegment(Segment *segment, uint8_t *buffer, size_t nBytes);
 void printSegment(const Segment &seg, size_t payloadLen);
-// void encodeFile(const std::string &filePath, uint8_t &dataStream);
 
 #endif
