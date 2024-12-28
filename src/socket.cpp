@@ -322,7 +322,12 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
                 }
                 else
                 {
-                    cout << "[i] [Established] [Seg " << ++segmentsAwaitingAck + ackReceived << "] [S=" << seqNum << "] Sent" << endl;
+                    if (sentSegment.find(seqNum) == sentSegment.end())  // Only increment for new segments
+                    {
+                        segmentsAwaitingAck++;
+                        sentSegment.insert(seqNum);
+                    }
+                    cout << "[i] [Established] [Seg " << ++sentSegmentNum << "] [S=" << seqNum << "] Sent" << endl;
                     if (chrono::steady_clock::now() - recieveACKTime <= TIMEOUT_DURATION)
                     {
                         sentSegment.insert(seqNum);
