@@ -229,7 +229,7 @@ string TCPSocket::connect(const string &broadcastAddr, int32_t port)
             Segment ackSeg = ack(synAckSeg.sequenceNumber + 1);
             uint8_t *ackSegBuf = serializeSegment(&ackSeg, 0, 0);
 
-            cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK request to " << remoteIp << ":" << port << endl;
+            cout << "[+] [Handshake] [A=" << ackSeg.acknowledgementNumber << "] Sending ACK to " << remoteIp << ":" << port << endl;
             ssize_t ackBytesSent = sendto(this->socket, ackSegBuf, BASE_SEGMENT_SIZE, 0, (struct sockaddr *)&destAddr, sizeof(destAddr));
 
             if (ackBytesSent < 0)
@@ -695,12 +695,16 @@ void TCPSocket::receiveThread(sockaddr_in &serverAddress, socklen_t &serverAddre
         if (bytesRead < 0)
         {
             // add condition to display message with [Established] or [Closing]
-            if (this->status == ESTABLISHED)
-            {
-                cout << "[!] [Established] ";
-            }
             if (this->isReceiving)
             {
+                if (this->status == ESTABLISHED)
+                {
+                    cout << "[!] [Established] ";
+                }
+                else
+                {
+                    cout << "[!] [Closing] ";
+                }
                 cerr << "Failed to receive data" << endl;
             }
             continue;
