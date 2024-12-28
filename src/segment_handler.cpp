@@ -57,7 +57,7 @@ void SegmentHandler::setDataStream(uint8_t *dataStream, uint32_t dataSize)
 {
     this->dataStream = dataStream;
     this->dataSize = dataSize;
-    this->dataIndex = 0;
+    this->dataSentIndex = 0;
 }
 
 uint8_t SegmentHandler::getWindowSize()
@@ -82,11 +82,11 @@ void SegmentHandler::advanceWindow(uint8_t size, std::vector<Segment *> *window)
     {
         size = segmentBuffer.size();
     }
-    while (size > 0 && dataIndex < segmentBuffer.size())
+    while (size > 0 && dataSentIndex < segmentBuffer.size())
     {
-        Segment *segment = &segmentBuffer.at(dataIndex);
+        Segment *segment = &segmentBuffer.at(dataSentIndex);
         window->push_back(segment);
-        dataIndex++;
+        dataSentIndex++;
         size--;
     }
 }

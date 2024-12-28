@@ -17,9 +17,9 @@ private:
     void *dataStream;
     std::vector<Segment> segmentBuffer;
     uint32_t dataSize;
+    uint32_t dataSentIndex;
 
 public:
-    uint32_t dataIndex;
     SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint32_t currentAckNum);
 
     void generateSegments();
