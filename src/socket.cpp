@@ -9,7 +9,7 @@
 
 using namespace std;
 
-constexpr chrono::milliseconds TIMEOUT_DURATION(5000);
+constexpr chrono::milliseconds TIMEOUT_DURATION(3000);
 
 TCPSocket::TCPSocket(const string &ip, int32_t port)
 {
@@ -280,14 +280,13 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
     // will just get the base window size, which is 7
     uint8_t windowSize = this->segmentHandler->getWindowSize();
     // name will make sense later
-    chrono::time_point<chrono::steady_clock> recieveACKTime = chrono::steady_clock::now();
+    chrono::time_point<chrono::steady_clock> timeoutCountStart = chrono::steady_clock::now();
     cout << "[i] [Established] Sending input to " << ip << ":" << port << endl;
     std::set<uint32_t> sentSegment;
     // advance window mengambil segment2 dari  segmentBuffer dan masukin ke window
     this->segmentHandler->advanceWindow(windowSize, &this->window);
     size_t segmentBufferSize = this->segmentHandler->getSegmentBufferSize();
     size_t ackReceived = 0;
-    size_t segmentsAwaitingAck = 0;
     while (ackReceived < segmentBufferSize)
     {
         // sending part
@@ -300,17 +299,19 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
             Segment *tempSeg = window[i];
             uint32_t seqNum = tempSeg->sequenceNumber;
 
-            if (sentSegment.find(seqNum) == sentSegment.end() || chrono::steady_clock::now() - recieveACKTime > TIMEOUT_DURATION)
+            bool retransmit = (chrono::steady_clock::now() - timeoutCountStart > TIMEOUT_DURATION) ? true : false;
+
+            if (sentSegment.find(seqNum) == sentSegment.end() || retransmit)
             {
                 uint32_t payloadSize;
-                size_t sentSegmentNum = ackReceived + segmentsAwaitingAck;
-                if (segmentBufferSize - (sentSegmentNum) > 1)
+                size_t sentSegmentNum = retransmit ? ackReceived + i + 1 : ackReceived + sentSegment.size() + 1;
+                if (segmentBufferSize - sentSegmentNum > 1)
                 {
-                    payloadSize = MAX_SEGMENT_SIZE;
+                    payloadSize = MAX_PAYLOAD_SIZE;
                 }
                 else
                 {
-                    payloadSize = dataSize - (sentSegmentNum * MAX_PAYLOAD_SIZE);
+                    payloadSize = dataSize - ((sentSegmentNum - 1) * MAX_PAYLOAD_SIZE);
                 }
 
                 uint8_t *buffer = serializeSegment(tempSeg, 0, payloadSize);
@@ -322,16 +323,12 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
                 }
                 else
                 {
-                    if (sentSegment.find(seqNum) == sentSegment.end())  // Only increment for new segments
+                    cout << "[i] [Established] [Seg " << sentSegmentNum << "] [S=" << seqNum << "] Sent" << endl;
+                    if (retransmit && (i == 0))
                     {
-                        segmentsAwaitingAck++;
-                        sentSegment.insert(seqNum);
+                        timeoutCountStart = chrono::steady_clock::now();
                     }
-                    cout << "[i] [Established] [Seg " << ++sentSegmentNum << "] [S=" << seqNum << "] Sent" << endl;
-                    if (chrono::steady_clock::now() - recieveACKTime <= TIMEOUT_DURATION)
-                    {
-                        sentSegment.insert(seqNum);
-                    }
+                    sentSegment.insert(seqNum);
                     this->lfs = seqNum + payloadSize;
                     delete[] buffer;
                 }
@@ -352,17 +349,30 @@ void TCPSocket::send(const string &ip, int32_t port, void *dataStream, uint32_t 
             {
                 if (ackSeg.acknowledgementNumber > this->lar && ackSeg.acknowledgementNumber <= this->lfs + 1)
                 {
-                    cout << "[!] [Established] ACK Received [" << ackSeg.acknowledgementNumber << "]\n";
+                    cout << "[!] [Established] [A=" << ackSeg.acknowledgementNumber << "] ACK Received" << endl;
+
+                    // Remove segments with seqNum < ackNumber from sentSegment
+                    for (auto it = sentSegment.begin(); it != sentSegment.end();)
+                    {
+                        if (*it < ackSeg.acknowledgementNumber)
+                        {
+                            it = sentSegment.erase(it);
+                        }
+                        else
+                        {
+                            ++it;
+                        }
+                    }
+
                     // Move the window forward
                     uint32_t numSegmentsAcked = ceil((float) (ackSeg.acknowledgementNumber - this->lar) / MAX_PAYLOAD_SIZE);
                     this->segmentHandler->advanceWindow(numSegmentsAcked, &this->window);
                     
                     ackReceived += numSegmentsAcked;
-                    segmentsAwaitingAck -= numSegmentsAcked;
                     this->window.erase(window.begin(), window.begin() + numSegmentsAcked);
 
                     this->lar = ackSeg.acknowledgementNumber;
-                    recieveACKTime = chrono::steady_clock::now();
+                    timeoutCountStart = chrono::steady_clock::now();
                 }
             }
         }
