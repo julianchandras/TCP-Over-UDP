@@ -9,7 +9,7 @@
 
 using namespace std;
 
-constexpr chrono::milliseconds TIMEOUT_DURATION(3000);
+constexpr chrono::milliseconds TIMEOUT_DURATION(1000);
 
 TCPSocket::TCPSocket(const string &ip, int32_t port)
 {
@@ -657,9 +657,9 @@ void TCPSocket::processThread(sockaddr_in &serverAddress, socklen_t serverAddres
         deserializeToSegment(&seg, packet.data(), packet.size());
 
         bool retransmit = false;
-        if (seg.sequenceNumber > this->laf)
+        if (seg.sequenceNumber != this->lfr + 1)
         {
-            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] Segment out of range: LAF=" << this->laf << endl;
+            cout << "[!] [Established] [S=" << seg.sequenceNumber << "] [LFR=" << this->lfr << "] Segment out of order" << endl;
             retransmit = true;
         }
 
@@ -669,7 +669,7 @@ void TCPSocket::processThread(sockaddr_in &serverAddress, socklen_t serverAddres
             retransmit = true;
         }
 
-        if (seg.sequenceNumber == this->lfr + 1 && !retransmit)
+        if (!retransmit)
         {
             if (flagsToByte(seg) == FIN_FLAG)
             {
