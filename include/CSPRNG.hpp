@@ -2,6 +2,7 @@
 #define CSPRNG_H
 
 #include <fstream>
+#include <cstdint>
 
 class CSPRNG
 {

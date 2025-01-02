@@ -15,6 +15,7 @@ struct NetworkInterface
     std::string broadcast;
 };
 
+
 /**
  * Abstract class.
  *

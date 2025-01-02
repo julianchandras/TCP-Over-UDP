@@ -1,10 +1,22 @@
 #include "client.hpp"
 #include "utils.hpp"
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
 Client::Client(const string &ip, int32_t port) : Node(ip, port) {}
+
+void printNetworkInterfaces(const std::vector<NetworkInterface> &interfaces)
+{
+    for (const auto &iface : interfaces)
+    {
+        std::cout << "Name: " << iface.name << std::endl;
+        std::cout << "IP: " << iface.ip << std::endl;
+        std::cout << "Broadcast: " << iface.broadcast << std::endl;
+        std::cout << "---------------------------" << std::endl;
+    }
+}
 
 void Client::run()
 {
@@ -12,10 +24,10 @@ void Client::run()
     int32_t serverPort;
 
     auto interfaces = Node::getNetworkInterfaces();
-
-    if (interfaces.size() > 2)
+    printNetworkInterfaces(interfaces);
+    if (interfaces.size() > 1)
     {
-        broadcastAddr = interfaces.at(2).broadcast;
+        broadcastAddr = interfaces.at(1).broadcast;
     }
     else
     {
@@ -28,18 +40,11 @@ void Client::run()
     this->serverPort = serverPort;
     this->serverIp = this->connection->connect(broadcastAddr, this->serverPort);
 
-    uint8_t *buffer = (uint8_t *)malloc(2000 * sizeof(uint8_t));
-    if (buffer == nullptr)
-    {
-        cerr << "[!] Memory allocation failed!" << endl;
-        return;
-    }
-
-    int bytesRead = this->connection->recv(buffer, 2000);
-    if (bytesRead <= 0)
+    vector<uint8_t> buffer;
+    int dataLength = this->connection->recv(buffer);
+    if (dataLength <= 0)
     {
         cerr << "[!] No data received or connection error." << endl;
-        free(buffer);
         return;
     }
 
@@ -47,32 +52,31 @@ void Client::run()
 
     // Extract file name length
     uint32_t nameLength;
-    memcpy(&nameLength, buffer + offset, sizeof(nameLength));
+    memcpy(&nameLength, buffer.data() + offset, sizeof(nameLength));
     offset += sizeof(nameLength);
 
     uint32_t extLength;
-    memcpy(&extLength, buffer + offset, sizeof(extLength));
+    memcpy(&extLength, buffer.data() + offset, sizeof(extLength));
     offset += sizeof(extLength);
 
     if (nameLength == 0)
     {
-        cout << "[i] Message received: " 
-             << string(reinterpret_cast<char *>(buffer + offset), bytesRead - offset) 
+        cout << "[i] Message received: "
+             << string(reinterpret_cast<char *>(buffer.data() + offset), dataLength - offset)
              << endl;
-        cout << "[i] Message length: " << bytesRead - offset << endl;
-        free(buffer);
+        cout << "[i] Message length: " << dataLength - offset << endl;
         return;
     }
 
-    string fileName(reinterpret_cast<char *>(buffer + offset), nameLength);
+    string fileName(reinterpret_cast<char *>(buffer.data() + offset), nameLength);
     offset += nameLength;
 
-    string fileExtension(reinterpret_cast<char *>(buffer + offset), extLength);
+    string fileExtension(reinterpret_cast<char *>(buffer.data() + offset), extLength);
     offset += extLength;
 
     // Extract file content
-    size_t contentLength = bytesRead - offset;
-    vector<uint8_t> fileContent(buffer + offset, buffer + offset + contentLength);
+    size_t contentLength = dataLength - offset;
+    vector<uint8_t> fileContent(buffer.begin() + offset, buffer.begin() + offset + contentLength);
 
     // Construct full file name
     string fullFileName = fileName + "." + fileExtension;
@@ -82,7 +86,6 @@ void Client::run()
     if (!outputFile.is_open())
     {
         cerr << "[!] Could not create file: " << fullFileName << endl;
-        free(buffer);
         return;
     }
     outputFile.write(reinterpret_cast<const char *>(fileContent.data()), fileContent.size());
@@ -90,6 +93,4 @@ void Client::run()
 
     cout << "[i] File saved as: " << fullFileName << endl;
     cout << "[i] File size: " << fileContent.size() << " bytes" << endl;
-
-    free(buffer);
 }

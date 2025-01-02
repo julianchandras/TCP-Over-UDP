@@ -17,7 +17,7 @@ private:
     void *dataStream;
     std::vector<Segment> segmentBuffer;
     uint32_t dataSize;
-    uint32_t dataIndex;
+    uint32_t dataSentIndex;
 
 public:
     SegmentHandler(uint8_t windowSize, uint32_t currentSeqNum, uint32_t currentAckNum);
@@ -25,11 +25,12 @@ public:
     void generateSegments();
     void setDataStream(uint8_t *dataStream, uint32_t dataSize);
     uint8_t getWindowSize();
+    size_t getSegmentBufferSize();
     uint32_t getCurrentSeqNum();
-    std::vector<Segment *> advanceWindow(uint8_t size);
+    void advanceWindow(uint8_t size, std::vector<Segment *> *window);
 
     void appendSegmentBuffer(Segment *Seg);
-    void getDatastream(uint8_t *dataStream, uint32_t bufferSize);
+    void getDatastream(std::vector<uint8_t> &dataStream);
 
     // cuman buat server
     std::vector<Segment> ackChecker;

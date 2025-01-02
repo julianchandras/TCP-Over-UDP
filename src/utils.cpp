@@ -62,22 +62,3 @@ void printSegment(const Segment &seg, size_t payloadLen)
     }
     cout << endl;
 }
-
-// void encodeFile(const string &filePath, uint8_t &dataStream)
-// {
-//     ifstream file(filePath, ios::binary);
-//     if (!file.is_open())
-//     {
-//         cerr << "[!] Error: Could not open file " << filePath << endl;
-//         return;
-//     }
-//     // nyari file name
-//     size_t pos = filePath.find_last_of("/\\");
-//     string fileName = (pos == string::npos) ? filePath : filePath.substr(pos + 1);
-//     vector<uint8_t> fileContent((istreambuf_iterator<char>(file)), istreambuf_iterator<char>());
-//     file.close();
-//     // Create the data stream: [file_name_length (4 bytes)][file_name][file_content]
-//     uint32_t fileNameLength = fileName.size();
-//     size_t dataSize = sizeof(fileNameLength) + fileNameLength + fileContent.size();
-//     dataStream = (uint8_t *)malloc(dataSize);
-// }
