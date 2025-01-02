@@ -20,11 +20,12 @@ all: $(TARGET)
 
 # Link the object files to create the binary
 $(TARGET): $(OBJS)
+	@mkdir -p $(BIN_DIR)
 	$(CXX) $(OBJS) -o $(TARGET)
 
 # Compile each .cpp file into an object file
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(OBJ_DIR)  # Create the obj directory if it doesn't exist
+	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean object and binary files
